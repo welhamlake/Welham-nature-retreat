@@ -1,0 +1,63 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welham Lake Booking Preview</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f5ef;color:#25372b;margin:0;padding:20px}
+main{max-width:750px;margin:auto}
+h1{color:#294b35}
+section{background:white;padding:20px;margin:18px 0;border-radius:12px}
+label{display:block;margin:12px 0 5px}
+input,select{width:100%;padding:12px;box-sizing:border-box;font-size:16px}
+button{background:#294b35;color:white;border:0;border-radius:8px;padding:14px;width:100%;margin-top:20px;font-size:16px}
+small{color:#666}
+</style>
+</head>
+<body>
+<main>
+<h1>Welham Lake Nature Retreat</h1>
+<p>Booking system preview — not accepting live bookings.</p>
+
+<section>
+<h2>Accommodation</h2>
+<label>Choose accommodation</label>
+<select id="stay">
+<option value="300">Luxury cabin — £300/night</option>
+<option value="250">Island bell tent — £250/night (from March 2027)</option>
+</select>
+<label>Arrival date</label>
+<input type="date" id="arrival">
+<label>Departure date</label>
+<input type="date" id="departure">
+<p>Luxury cabin minimum stay: 2 nights.</p>
+</section>
+
+<section>
+<h2>Wildlife hides</h2>
+<label>Choose session</label>
+<select id="hide">
+<option>Separate hide — Day 07:00–17:00</option>
+<option>Separate hide — Overnight 18:00–06:00</option>
+<option>Three island hides — Exclusive day session £100</option>
+</select>
+<label>Session date</label>
+<input type="date" id="session">
+<p>Island hide-only bookings: maximum 14 days in advance.</p>
+</section>
+
+<section>
+<h2>Booking process</h2>
+<p>1. Guest requests a booking.</p>
+<p>2. Owner checks availability and approves.</p>
+<p>3. Guest receives a Stripe link for full payment.</p>
+<p>4. Guest has 24 hours to pay.</p>
+<p>5. Booking is confirmed after successful payment.</p>
+<button type="button" disabled>Bookings not yet enabled</button>
+<p><small>Calendars, database and payments still require connection and testing.</small></p>
+</section>
+</main>
+</body>
+</html>
