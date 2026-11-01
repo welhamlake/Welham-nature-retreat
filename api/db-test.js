@@ -1,7 +1,8 @@
 
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (!process.env.DATABASE_URL) {
