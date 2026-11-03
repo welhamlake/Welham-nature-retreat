@@ -156,7 +156,7 @@ export default async function handler(req, res) {
             `Total: £${(totalPence / 100).toFixed(2)}`,
             '',
             'Request saved in database.',
-            'Approval links are not active yet.'
+            `Review booking: https://welham-nature-retreat.vercel.app/api/approve?token=${token}`
           ].join('\n')
         })
       }
