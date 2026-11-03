@@ -100,6 +100,13 @@ export default async function handler(req, res) {
       );
     }
 
+if (confirm === 'yes' &&
+    req.body.owner_password !== process.env.BOOKING_ADMIN_PASSWORD) {
+  return res.status(403).send(
+    page('Access denied', 'Incorrect owner password.')
+  );
+}
+
     if (confirm !== 'yes') {
       const action = decision === 'approve'
         ? 'Approve'
