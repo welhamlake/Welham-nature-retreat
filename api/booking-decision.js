@@ -119,7 +119,17 @@ if (confirm === 'yes' &&
           <input type="hidden" name="token" value="${escapeHtml(token)}">
           <input type="hidden" name="decision" value="${escapeHtml(decision)}">
           <input type="hidden" name="confirm" value="yes">
-          <button type="submit">Yes, ${action}</button>
+          
+<label for="owner_password">Owner password</label>
+<input
+  id="owner_password"
+  type="password"
+  name="owner_password"
+  required
+  autocomplete="off"
+  style="display:block;width:90%;padding:12px;margin:12px 0;"
+>
+button type="submit">Yes, ${action}</button>
         </form>
         <p><a href="/api/approve?token=${encodeURIComponent(token)}">Go back</a></p>`
       ));
