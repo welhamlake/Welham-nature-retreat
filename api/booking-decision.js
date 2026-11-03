@@ -256,7 +256,7 @@ RETURNING request_reference, guest_name, email, total_pence, payment_due_at`,
       decision === 'approve' ? 'Booking approved' : 'Booking declined',
       decision === 'approve'
         ?  
-? 'Booking approved. Bank transfer instructions have been emailed to the customer.'
+'Booking approved. Bank transfer instructions have been emailed to the customer.'
 
         : 'The booking has been declined in the database. The customer has NOT been emailed yet.'
     ));
