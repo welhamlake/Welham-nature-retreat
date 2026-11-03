@@ -129,7 +129,7 @@ if (confirm === 'yes' &&
   autocomplete="off"
   style="display:block;width:90%;padding:12px;margin:12px 0;"
 >
-button type="submit">Yes, ${action}</button>
+<button type="submit">Yes, ${action}</button>
         </form>
         <p><a href="/api/approve?token=${encodeURIComponent(token)}">Go back</a></p>`
       ));
