@@ -35,6 +35,7 @@ function layout(content) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
 <title>Welham Booking Dashboard</title>
 <style>
 *{box-sizing:border-box}
@@ -47,7 +48,7 @@ h2{font-size:20px}
 input,button{font:inherit;padding:13px;border-radius:8px;width:100%;margin:8px 0}
 input{border:1px solid #bbb}
 button,.action{display:block;background:#234735;color:white;border:0;border-radius:8px;padding:13px;text-align:center;text-decoration:none;font-weight:bold;margin:8px 0}
-.action.secondary{background:#546b60}
+button.decline{background:#8b3f35}
 small{color:#66736a}
 .status{font-weight:bold}
 </style>
@@ -61,6 +62,7 @@ small{color:#66736a}
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
   if (req.method === 'GET') {
@@ -118,18 +120,27 @@ export default async function handler(req, res) {
 
     const cards = result.rows.map(b => {
       const ref = escapeHtml(b.request_reference);
-      const actions = [];
+      let actions = '';
 
       if (b.status === 'pending') {
-        actions.push(
-          '<p><small>Approval and decline controls will be connected to the existing secure booking review system.</small></p>'
-        );
+        actions = `
+          <form method="POST" action="/api/dashboard-confirm">
+            <input type="hidden" name="reference" value="${ref}">
+            <button type="submit" name="decision" value="approve">
+              Approve booking
+            </button>
+            <button class="decline" type="submit"
+                    name="decision" value="decline">
+              Decline booking
+            </button>
+          </form>`;
       }
 
       if (b.status === 'approved' && b.payment_status === 'unpaid') {
-        actions.push(
-          '<a class="action" href="/api/payment-admin">Mark as Paid</a>'
-        );
+        actions = `
+          <a class="action" href="/api/payment-admin">
+            Mark as Paid
+          </a>`;
       }
 
       return `
@@ -143,7 +154,7 @@ export default async function handler(req, res) {
           <p class="status">Booking: ${escapeHtml(b.status)}</p>
           <p class="status">Payment: ${escapeHtml(b.payment_status)}</p>
           <p><strong>Total:</strong> £${(Number(b.total_pence) / 100).toFixed(2)}</p>
-          ${actions.join('')}
+          ${actions}
         </div>`;
     }).join('');
 
