@@ -6,11 +6,8 @@ const { Pool } = pg;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;'
   })[c]);
 }
 
@@ -49,7 +46,8 @@ h2{font-size:20px}
 .card{background:white;border-radius:12px;padding:17px;margin:14px 0;box-shadow:0 2px 8px #0001}
 input,button{font:inherit;padding:13px;border-radius:8px;width:100%;margin:8px 0}
 input{border:1px solid #bbb}
-button{background:#234735;color:white;border:0;font-weight:bold}
+button,.action{display:block;background:#234735;color:white;border:0;border-radius:8px;padding:13px;text-align:center;text-decoration:none;font-weight:bold;margin:8px 0}
+.action.secondary{background:#546b60}
 small{color:#66736a}
 .status{font-weight:bold}
 </style>
@@ -118,25 +116,42 @@ export default async function handler(req, res) {
       LIMIT 100
     `);
 
-    const cards = result.rows.map(b => `
-      <div class="card">
-        <h2>${escapeHtml(b.guest_name)}</h2>
-        <p><strong>Reference:</strong> ${escapeHtml(b.request_reference)}</p>
-        <p><strong>Experience:</strong> ${escapeHtml(b.type)}</p>
-        <p><strong>Start:</strong> ${formatDate(b.start_date)}</p>
-        ${b.end_date ? `<p><strong>End:</strong> ${formatDate(b.end_date)}</p>` : ''}
-        ${b.session ? `<p><strong>Session:</strong> ${escapeHtml(b.session)}</p>` : ''}
-        <p class="status">Booking: ${escapeHtml(b.status)}</p>
-        <p class="status">Payment: ${escapeHtml(b.payment_status)}</p>
-        <p><strong>Total:</strong> £${(Number(b.total_pence) / 100).toFixed(2)}</p>
-      </div>
-    `).join('');
+    const cards = result.rows.map(b => {
+      const ref = escapeHtml(b.request_reference);
+      const actions = [];
+
+      if (b.status === 'pending') {
+        actions.push(
+          '<p><small>Approval and decline controls will be connected to the existing secure booking review system.</small></p>'
+        );
+      }
+
+      if (b.status === 'approved' && b.payment_status === 'unpaid') {
+        actions.push(
+          '<a class="action" href="/api/payment-admin">Mark as Paid</a>'
+        );
+      }
+
+      return `
+        <div class="card">
+          <h2>${escapeHtml(b.guest_name)}</h2>
+          <p><strong>Reference:</strong> ${ref}</p>
+          <p><strong>Experience:</strong> ${escapeHtml(b.type)}</p>
+          <p><strong>Start:</strong> ${formatDate(b.start_date)}</p>
+          ${b.end_date ? `<p><strong>End:</strong> ${formatDate(b.end_date)}</p>` : ''}
+          ${b.session ? `<p><strong>Session:</strong> ${escapeHtml(b.session)}</p>` : ''}
+          <p class="status">Booking: ${escapeHtml(b.status)}</p>
+          <p class="status">Payment: ${escapeHtml(b.payment_status)}</p>
+          <p><strong>Total:</strong> £${(Number(b.total_pence) / 100).toFixed(2)}</p>
+          ${actions.join('')}
+        </div>`;
+    }).join('');
 
     return res.status(200).send(layout(`
       <h2>Your Bookings (${result.rows.length})</h2>
       <small>Showing up to 100 bookings, newest dates first.</small>
       ${cards || '<div class="card">No bookings found.</div>'}
-      <p><a href="/api/dashboard">Log out / Return to login</a></p>
+      <p><a href="/api/dashboard">Return to login</a></p>
     `));
   } catch (error) {
     console.error('Dashboard error:', error.code || error.message);
