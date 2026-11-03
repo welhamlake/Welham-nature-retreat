@@ -173,6 +173,15 @@ if (confirm === 'yes' &&
 
   } catch (error) {
     console.error('Booking decision error', error.code);
+    if (error.code === '23P01' || error.code === '23505') {
+      return res.status(409).send(
+        page(
+          'Dates already booked',
+          'This accommodation or wildlife hide session is already booked. The request has not been approved.'
+        )
+      );
+    }
+
     return res.status(500).send(
       page('Error', 'Unable to process this booking.')
     );
