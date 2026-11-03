@@ -2,7 +2,13 @@
 import pg from 'pg';
 import { createHash } from 'node:crypto';
 
+import { Resend } from 'resend';
+
 const { Pool } = pg;
+
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({
@@ -35,6 +41,64 @@ a{color:#284739}
 <p>${escapeHtml(message)}</p>
 ${content}
 </main></body></html>`;
+}
+
+async function sendPaymentEmail(booking) {
+  if (!resend) {
+    throw new Error('Email service unavailable');
+  }
+
+  const required = [
+    'BANK_ACCOUNT_NAME',
+    'BANK_SORT_CODE',
+    'BANK_ACCOUNT_NUMBER'
+  ];
+
+  if (required.some(key => !process.env[key])) {
+    throw new Error('Bank details not configured');
+  }
+
+  const amount = (booking.total_pence / 100).toFixed(2);
+  const deadline = new Date(booking.payment_due_at)
+    .toLocaleString('en-GB', {
+      timeZone: 'Europe/London',
+      dateStyle: 'full',
+      timeStyle: 'short'
+    });
+
+  const message = [
+    `Hello ${booking.guest_name},`,
+    '',
+    'Your Welham Nature Retreat booking has been approved.',
+    '',
+    `Booking reference: ${booking.request_reference}`,
+    `Total to pay: £${amount}`,
+    '',
+    'Please make a bank transfer using:',
+    `Account name: ${process.env.BANK_ACCOUNT_NAME}`,
+    `Sort code: ${process.env.BANK_SORT_CODE}`,
+    `Account number: ${process.env.BANK_ACCOUNT_NUMBER}`,
+    `Payment reference: ${booking.request_reference}`,
+    '',
+    `Payment deadline: ${deadline} (UK time)`,
+    '',
+    'Please pay within 24 hours of approval.',
+    'Your booking is not confirmed until payment has been verified.',
+    '',
+    'Thank you,',
+    'Welham Nature Retreat'
+  ].join('\n');
+
+  const result = await resend.emails.send({
+    from: 'Welham Nature Retreat <bookings@welhamlakenature.co.uk>',
+    to: [booking.email],
+    subject: `Payment instructions - ${booking.request_reference}`,
+    text: message
+  });
+
+  if (result.error) {
+    throw new Error('Resend email failed');
+  }
 }
 
 export default async function handler(req, res) {
@@ -153,7 +217,9 @@ if (confirm === 'yes' &&
            END
        WHERE approval_token_hash = $2
          AND status = 'pending'
-       RETURNING request_reference`,
+       
+RETURNING request_reference, guest_name, email, total_pence, payment_due_at`,
+
       [newStatus, hash]
     );
 
@@ -164,10 +230,34 @@ if (confirm === 'yes' &&
       );
     }
 
+    if (decision === 'approve') {
+      try {
+        await sendPaymentEmail(updated.rows[0]);
+
+        await pool.query(
+          `UPDATE public.bookings
+           SET email_payment_sent_at = NOW()
+           WHERE approval_token_hash = $1`,
+          [hash]
+        );
+      } catch (emailError) {
+        console.error('Payment email error:', emailError.message);
+
+        return res.status(200).send(
+          page(
+            'Booking approved - email not sent',
+            'Your booking was approved, but the payment email could not be sent.'
+          )
+        );
+      }
+    }
+
     return res.status(200).send(page(
       decision === 'approve' ? 'Booking approved' : 'Booking declined',
       decision === 'approve'
-        ? 'The booking is approved in the database. Payment instructions have NOT been emailed yet.'
+        ?  
+? 'Booking approved. Bank transfer instructions have been emailed to the customer.'
+
         : 'The booking has been declined in the database. The customer has NOT been emailed yet.'
     ));
 
