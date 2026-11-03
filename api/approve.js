@@ -125,9 +125,22 @@ export default async function handler(req, res) {
           <p><strong>Status:</strong>
             ${escapeHtml(b.status)}</p>
           <hr>
-          <p>Booking approval controls will be
-          activated in the next setup step.</p>
-          <p>No payment has been requested.</p>
+          <p>Review this booking and choose an action:</p>
+
+<form method="POST" action="/api/booking-decision">
+  <input type="hidden" name="token" value="${escapeHtml(token)}">
+
+  <button type="submit" name="decision" value="approve">
+    Approve booking
+  </button>
+
+  <button type="submit" name="decision" value="decline">
+    Decline booking
+  </button>
+</form>
+
+<p>No payment instructions will be sent until
+the approval system is activated.</p>
         </main>
       </body>
       </html>
