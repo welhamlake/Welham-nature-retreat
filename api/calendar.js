@@ -452,7 +452,9 @@ session: b.session || 'all'
             blocksOn(date).forEach(b => {
               const event = document.createElement('span');
               event.className = 'event blocked';
-              event.textContent = 'Blocked: ' + b.experience;
+            event.textContent = 'Blocked: ' + b.experience +
+  ' (' + (b.session === 'all' ? 'Whole day' :
+  b.session === 'day' ? 'Daytime' : 'Overnight') + ')';
               cell.appendChild(event);
             });
 
