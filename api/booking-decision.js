@@ -216,7 +216,8 @@ if (confirm === 'yes' &&
              ELSE payment_due_at
            END
        WHERE approval_token_hash = $2
-         AND status = 'pending'
+  AND status = 'pending'
+  AND expires_at > NOW()
        
 RETURNING request_reference, guest_name, email, total_pence, payment_due_at`,
 
