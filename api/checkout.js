@@ -119,7 +119,7 @@ export default async function handler(req, res) {
        VALUES
        ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,
         'pending','unpaid',$10,$11,
-        NOW() + INTERVAL '30 days')`,
+        NOW() + INTERVAL '24 hours')`,
       [
         type, start_date, departure, hideSession,
         count, name, guestEmail, guestPhone || null,
