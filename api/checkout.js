@@ -53,7 +53,10 @@ export default async function handler(req, res) {
   let hideSession = null;
 
   if (type === 'hide' || type === 'island_hides') {
-    if (!['day', 'night'].includes(session)) {
+    if (
+  (type === 'island_hides' && session !== 'day') ||
+  (type === 'hide' && !['day', 'night'].includes(session))
+) {
       return res.status(400).json({
         error: 'Please select a hide session.'
       });
