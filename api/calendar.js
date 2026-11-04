@@ -149,7 +149,7 @@ export default async function handler(req, res) {
         LIMIT 2000
       `),
       pool.query(`
-        SELECT id, experience, start_date, end_date, reason
+        SELECT id, experience, start_date, end_date, reason,session
         FROM public.blocked_dates
         WHERE end_date >= CURRENT_DATE - INTERVAL '2 years'
           AND start_date < CURRENT_DATE + INTERVAL '3 years'
