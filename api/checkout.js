@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   const guestPhone = typeof phone === 'string' ? phone.trim() : '';
   const count = Number(guests);
 
-  if (!['cabin', 'hide'].includes(type) ||
+  if (!['cabin', 'hide', 'island', 'island_hides'].includes(type) || ||
       ![1, 2].includes(count) ||
       !name || name.length > 120 ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail) ||
