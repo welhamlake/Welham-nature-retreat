@@ -12,9 +12,10 @@ function validDate(value) {
     !/^\d{4}-\d{2}-\d{2}$/.test(value)
   ) return false;
 
-  const date = new Date(value + 'T12:00:00Z');
-  return !Number.isNaN(date.getTime()) &&
-    date.toISOString().slice(0, 10) === value;
+  const d = new Date(value + 'T12:00:00Z');
+
+  return !Number.isNaN(d.getTime()) &&
+    d.toISOString().slice(0, 10) === value;
 }
 
 function addDays(date, days) {
@@ -32,78 +33,80 @@ function ukToday() {
   }).formatToParts(new Date());
 
   const get = type =>
-    parts.find(part => part.type === type)?.value;
+    parts.find(p => p.type === type)?.value;
 
   return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function error(res, status, message) {
+  return res.status(status).json({
+    available: false,
+    error: message
+  });
 }
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'GET') {
-    return res.status(405).json({
-      error: 'Method not allowed.'
-    });
+    return error(res, 405, 'Method not allowed');
   }
 
-  const { type, start_date, end_date, session } = req.query;
+  const {
+    type,
+    start_date,
+    end_date,
+    session
+  } = req.query || {};
 
-  if (!TYPES.includes(type) || !validDate(start_date)) {
-    return res.status(400).json({
-      error: 'Please select a valid experience and date.'
-    });
+  if (
+    !TYPES.includes(type) ||
+    !validDate(start_date)
+  ) {
+    return error(res, 400, 'Please choose a valid experience and date.');
   }
 
   const today = ukToday();
 
   if (start_date < today) {
-    return res.status(400).json({
-      error: 'Please choose a current or future date.'
-    });
+    return error(res, 400, 'Please choose a future or current date.');
   }
 
   if (
-    ['island', 'island_hides'].includes(type) &&
+    (type === 'island' || type === 'island_hides') &&
     start_date < '2027-03-01'
   ) {
-    return res.status(200).json({
-      available: false,
-      message: 'Island bookings start from 1 March 2027.'
-    });
+    return error(res, 400, 'Island bookings open from March 2027.');
   }
 
   if (
     type === 'island_hides' &&
     start_date > addDays(today, 14)
   ) {
-    return res.status(200).json({
-      available: false,
-      message: 'Island hides can only be booked 14 days ahead.'
-    });
+    return error(
+      res,
+      400,
+      'Island wildlife hides can only be booked 14 days ahead.'
+    );
   }
 
   const isHide = type === 'hide' || type === 'island_hides';
 
-  let rangeEnd;
-  let selectedSession = null;
+  let departure = null;
+  let hideSession = null;
 
   if (isHide) {
     if (
-      (type === 'hide' && !['day', 'night'].includes(session)) ||
-      (type === 'island_hides' && session !== 'day')
+      (type === 'island_hides' && session !== 'day') ||
+      (type === 'hide' && !['day', 'night'].includes(session))
     ) {
-      return res.status(400).json({
-        error: 'Please select a valid hide session.'
-      });
+      return error(res, 400, 'Please select a valid hide session.');
     }
 
-    selectedSession = session;
-    rangeEnd = addDays(start_date, 1);
+    hideSession = session;
   } else {
     if (!validDate(end_date)) {
-      return res.status(400).json({
-        error: 'Please select a departure date.'
-      });
+      return error(res, 400, 'Please choose a departure date.');
     }
 
     const nights = Math.round(
@@ -113,30 +116,45 @@ export default async function handler(req, res) {
       ) / 86400000
     );
 
-    const arrivalDay = new Date(
-      start_date + 'T12:00:00Z'
-    ).getUTCDay();
-
-    if (
-      nights < 2 ||
-      nights > 60 ||
-      (type === 'cabin' && [0, 6].includes(arrivalDay))
-    ) {
-      return res.status(400).json({
-        error: 'Please check your accommodation dates.'
-      });
+    if (nights < 2 || nights > 60) {
+      return error(
+        res,
+        400,
+        'Accommodation bookings require between 2 and 60 nights.'
+      );
     }
 
-    rangeEnd = type === 'island'
-      ? addDays(end_date, 1)
-      : end_date;
+    if (type === 'cabin') {
+      const arrivalDay = new Date(
+        start_date + 'T12:00:00Z'
+      ).getUTCDay();
+
+      if (arrivalDay === 0 || arrivalDay === 6) {
+        return error(
+          res,
+          400,
+          'Cabin arrivals are Monday to Friday only.'
+        );
+      }
+    }
+
+    departure = end_date;
   }
 
   if (!process.env.DATABASE_URL) {
-    return res.status(503).json({
-      error: 'Availability service is unavailable.'
-    });
+    return error(res, 503, 'Availability service is not configured.');
   }
+
+  const rangeEnd = isHide
+    ? addDays(start_date, 1)
+    : type === 'island'
+      ? addDays(departure, 1)
+      : departure;
+
+  const relatedTypes =
+    type === 'island' || type === 'island_hides'
+      ? ['island', 'island_hides']
+      : [type];
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -146,17 +164,12 @@ export default async function handler(req, res) {
         ? { ca: process.env.SUPABASE_CA_CERT }
         : {})
     },
-    max: 1,
-    connectionTimeoutMillis: 5000
+    connectionTimeoutMillis: 5000,
+    max: 1
   });
 
   try {
-    const relatedTypes =
-      ['island', 'island_hides'].includes(type)
-        ? ['island', 'island_hides']
-        : [type];
-
-    const blockResult = await pool.query(
+    const blocks = await pool.query(
       `SELECT 1
        FROM public.blocked_dates
        WHERE experience = ANY($1::text[])
@@ -170,23 +183,29 @@ export default async function handler(req, res) {
            '[)'
          )
          AND (
-           $4::text IS NULL
+           $4::boolean = true
            OR session IS NULL
            OR session = 'all'
-           OR session = $4
+           OR session = $5
          )
        LIMIT 1`,
-      [relatedTypes, start_date, rangeEnd, selectedSession]
+      [
+        relatedTypes,
+        start_date,
+        rangeEnd,
+        relatedTypes.includes('island'),
+        hideSession
+      ]
     );
 
-    if (blockResult.rowCount > 0) {
+    if (blocks.rowCount > 0) {
       return res.status(200).json({
         available: false,
         message: 'These dates are unavailable.'
       });
     }
 
-    const bookingResult = await pool.query(
+    const bookings = await pool.query(
       `SELECT 1
        FROM public.bookings
        WHERE status = ANY($1::text[])
@@ -239,30 +258,38 @@ export default async function handler(req, res) {
            )
          )
        LIMIT 1`,
-      [ACTIVE, type, start_date, rangeEnd, selectedSession]
+      [
+        ACTIVE,
+        type,
+        start_date,
+        rangeEnd,
+        hideSession
+      ]
     );
 
-    if (bookingResult.rowCount > 0) {
+    if (bookings.rowCount > 0) {
       return res.status(200).json({
         available: false,
-        message: 'These dates are already reserved.'
+        message: 'These dates are unavailable.'
       });
     }
 
     return res.status(200).json({
       available: true,
-      message: 'These dates are currently available to request.'
+      message: 'These dates are available to request.'
     });
 
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Availability check failed:',
-      error.code || error.message
+      err.code || err.message
     );
 
-    return res.status(503).json({
-      error: 'Unable to check availability right now.'
-    });
+    return error(
+      res,
+      500,
+      'Unable to check availability. Please try again.'
+    );
 
   } finally {
     await pool.end();
