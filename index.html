@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Welham Nature Retreat, North Yorkshire. Private luxury lakeside cabin, wildlife photography hides and island glamping opening March 2027.">
+<meta name="description" content="Welham Nature Retreat, North Yorkshire. Luxury lakeside cabin, exclusive wildlife photography hides and island glamping opening March 2027.">
 <title>Welham Nature Retreat | Private Lakeside Escapes in North Yorkshire</title>
 <style>
 :root{--forest:#172c24;--forest2:#284739;--cream:#f7f4ed;--gold:#d9bb82;--ink:#1e3029;--muted:#63736b}
@@ -59,7 +59,7 @@ h1{font-size:clamp(3.4rem,7vw,6.5rem);margin:15px 0;max-width:850px}
 .total{background:#f2f4ee;border-left:3px solid var(--forest2);padding:18px;margin:20px 0;line-height:1.9}
 .notice{background:#fff3d9;padding:13px 16px;border-radius:3px;color:#6e511b;font-size:14px}
 .booking button{border:0}
-.booking button:disabled{opacity:.6;cursor:wait}
+.booking button:disabled{opacity:.55;cursor:not-allowed}
 .small{font-size:13px}
 .faq details{border-bottom:1px solid #d7ded5;padding:17px 0}
 .faq summary{font-weight:700;cursor:pointer}
@@ -71,6 +71,7 @@ h1{font-size:clamp(3.4rem,7vw,6.5rem);margin:15px 0;max-width:850px}
 #liveBooking label{display:block;margin:12px 0}
 #liveBooking input:not([type="checkbox"]){display:block;width:100%;max-width:500px;padding:12px;border:1px solid #bfc9c1;border-radius:3px}
 #liveBooking input[type="checkbox"]{width:auto}
+#dateNotice{background:#f2f4ee;border-left:3px solid var(--forest2);padding:14px 17px;margin:15px 0}
 [hidden]{display:none!important}
 @media(max-width:850px){
 .cards{grid-template-columns:1fr}
@@ -89,6 +90,7 @@ h1{font-size:3.1rem}
 </style>
 </head>
 <body>
+
 <header class="top">
 <a class="logo" href="#home">WELHAM <small>NATURE RETREAT</small></a>
 <nav>
@@ -99,7 +101,9 @@ h1{font-size:3.1rem}
 <a href="#contact">Contact</a>
 </nav>
 </header>
+
 <main>
+
 <section id="home" class="hero">
 <div>
 <span class="eyebrow">A private escape in North Yorkshire</span>
@@ -119,6 +123,7 @@ h1{font-size:3.1rem}
 <p>From a private lakeside cabin to island glamping and exclusive wildlife photography hides, every visit is about privacy, tranquillity and reconnecting with nature.</p>
 </div>
 <div class="cards">
+
 <article class="card">
 <img src="images/1000037826.webp" alt="Welham luxury timber cabin illuminated at dusk">
 <div class="inside">
@@ -129,6 +134,7 @@ h1{font-size:3.1rem}
 <a class="btn" href="#book">View booking options</a>
 </div>
 </article>
+
 <article class="card">
 <img src="images/1000035298.webp" alt="Sunset over Welham Lake">
 <div class="inside">
@@ -139,6 +145,7 @@ h1{font-size:3.1rem}
 <a class="btn" href="#island">Discover the island</a>
 </div>
 </article>
+
 <article class="card">
 <img src="images/1000065352.webp" alt="Wildlife photographed at Welham Lake">
 <div class="inside">
@@ -149,6 +156,7 @@ h1{font-size:3.1rem}
 <a class="btn" href="#book">Explore sessions</a>
 </div>
 </article>
+
 <article class="card">
 <img src="images/1000034819.webp" alt="Island setting at Welham Lake">
 <div class="inside">
@@ -156,9 +164,10 @@ h1{font-size:3.1rem}
 <h3>Island Wildlife Hides</h3>
 <p>Exclusive daytime use of all three island hides. Bookable up to 14 days in advance, subject to Island Glamping availability.</p>
 <p class="price">£75 for one · £100 for two</p>
-<a class="btn" href="#book">Request an island session</a>
+<a class="btn" href="#book">View island sessions</a>
 </div>
 </article>
+
 </div>
 </section>
 
@@ -240,10 +249,11 @@ h1{font-size:3.1rem}
 <h2>Explore your booking</h2>
 <p>Choose your experience and dates, then send a request for manual approval. Availability is checked before a request is accepted.</p>
 </div>
+
 <div class="booking">
 <h3>Request your stay or wildlife session</h3>
 <div class="notice">
-This is a booking request, not a confirmed reservation. Accepted requests are held provisionally for up to 24 hours while awaiting owner approval. Island facilities are planned to open in March 2027, subject to completion.
+This is a booking request, not a confirmed reservation. Requests are held provisionally for up to 24 hours while awaiting owner approval. Island facilities are planned to open in March 2027, subject to completion.
 </div>
 
 <div class="formgrid" style="margin-top:20px">
@@ -256,6 +266,7 @@ This is a booking request, not a confirmed reservation. Accepted requests are he
 <option value="island_hides">Island Wildlife Hides — March 2027</option>
 </select>
 </div>
+
 <div class="field">
 <label for="guests">Guests</label>
 <select id="guests">
@@ -263,14 +274,17 @@ This is a booking request, not a confirmed reservation. Accepted requests are he
 <option value="2" selected>2 guests</option>
 </select>
 </div>
-<div class="field">
+
+<div class="field" id="startbox">
 <label for="start">Arrival / session date</label>
 <input id="start" type="date">
 </div>
+
 <div class="field" id="endbox">
 <label for="end">Departure date</label>
 <input id="end" type="date">
 </div>
+
 <div class="field" id="sessionbox" hidden>
 <label for="session">Hide session</label>
 <select id="session">
@@ -280,30 +294,42 @@ This is a booking request, not a confirmed reservation. Accepted requests are he
 </div>
 </div>
 
+<div id="dateNotice" hidden role="status" aria-live="polite"></div>
+
 <div id="result" class="total" aria-live="polite">
 Select your dates to calculate an estimated price.
 </div>
-<button class="btn" type="button" id="calculate">Calculate estimated price</button>
+
+<button class="btn" type="button" id="calculate">
+Calculate estimated price
+</button>
 
 <div id="liveBooking" style="margin-top:18px;padding:18px;border:1px solid #c9b58a;border-radius:12px">
 <h3>Send your booking request</h3>
 <p class="small">If your request is approved, we email bank transfer instructions for the full amount, payable within 24 hours. Your booking is confirmed only after payment has been verified.</p>
+
 <label>Full name
 <input id="guestName" autocomplete="name" maxlength="120">
 </label>
+
 <label>Email
 <input id="guestEmail" type="email" autocomplete="email">
 </label>
+
 <label>Phone (optional)
 <input id="guestPhone" autocomplete="tel">
 </label>
+
 <p>
 <label>
 <input type="checkbox" id="agreeTerms">
 I understand this is a booking request, not a confirmed reservation, and that full payment is due within 24 hours of approval.
 </label>
 </p>
-<button type="button" class="btn" id="reserve">Send booking request</button>
+
+<button type="button" class="btn" id="reserve">
+Send booking request
+</button>
 <p id="reserveStatus" role="status" aria-live="polite" class="small"></p>
 </div>
 
@@ -318,26 +344,32 @@ I understand this is a booking request, not a confirmed reservation, and that fu
 <span class="eyebrow">Good to know</span>
 <h2>Frequently asked questions</h2>
 </div>
+
 <details>
 <summary>Is the wood-fired hot tub included?</summary>
 <p>Yes, private use of the wood-fired hot tub is included in the luxury cabin's £300 nightly rate.</p>
 </details>
+
 <details>
 <summary>Does accommodation include wildlife hides?</summary>
 <p>Yes. The luxury cabin includes its dedicated wildlife hide. Island Glamping includes exclusive use of all three island wildlife hides throughout the stay, including checkout day. The separate wildlife hide can be booked independently.</p>
 </details>
+
 <details>
 <summary>When can I check in?</summary>
 <p>Accommodation check-in is from 3pm and check-out is by 10:30am. Cabin arrivals are Monday through Friday.</p>
 </details>
+
 <details>
 <summary>When can I book the island?</summary>
-<p>Requests for Island Glamping stays from 1 March 2027 can be submitted, subject to the facilities being completed. Island Wildlife Hide sessions can be requested only within 14 days of the session date and from March 2027.</p>
+<p>Requests for Island Glamping stays from 1 March 2027 can be submitted, subject to the facilities being completed. Island Wildlife Hide sessions become bookable 14 days before each session, starting with the March 2027 opening.</p>
 </details>
+
 <details>
 <summary>Can I book the island hides while someone is glamping?</summary>
 <p>No. Island Glamping guests have exclusive use of the three island hides, including their checkout day.</p>
 </details>
+
 <details>
 <summary>When do I pay?</summary>
 <p>After approval, we email bank transfer instructions for full payment, due within 24 hours. Your booking is confirmed after we verify payment.</p>
@@ -353,7 +385,9 @@ I understand this is a booking request, not a confirmed reservation, and that fu
 <p class="small muted">For enquiries, email welhamlake@live.co.uk. Booking requests are reviewed manually.</p>
 </div>
 </section>
+
 </main>
+
 <footer class="foot">
 <div class="logo">WELHAM <small>NATURE RETREAT</small></div>
 <p>© <span id="year"></span> Welham Nature Retreat · North Yorkshire</p>
@@ -369,10 +403,9 @@ const iso = d => [
   String(d.getDate()).padStart(2,'0')
 ].join('-');
 
-const today = new Date();
-today.setHours(12,0,0,0);
-const todayString = iso(today);
-const isHide = type => type === 'hide' || type === 'island_hides';
+function localToday() {
+  return iso(new Date());
+}
 
 function addDays(date, days) {
   const d = new Date(date + 'T12:00:00');
@@ -380,11 +413,21 @@ function addDays(date, days) {
   return iso(d);
 }
 
-$('year').textContent = today.getFullYear();
+function isHide(type) {
+  return type === 'hide' || type === 'island_hides';
+}
+
+function islandHidesNotOpen() {
+  return addDays(localToday(),14) < '2027-03-01';
+}
+
+$('year').textContent = new Date().getFullYear();
 
 function toggle() {
   const type = $('type').value;
   const hide = isHide(type);
+  const closed = type === 'island_hides' && islandHidesNotOpen();
+  const today = localToday();
 
   $('endbox').hidden = hide;
   $('sessionbox').hidden = !hide;
@@ -393,33 +436,52 @@ function toggle() {
   night.hidden = type === 'island_hides';
   night.disabled = type === 'island_hides';
 
-  if (type === 'island_hides') $('session').value = 'day';
+  if (type === 'island_hides') {
+    $('session').value = 'day';
+  }
 
-  const minDate = (type === 'island' || type === 'island_hides')
-    ? (todayString > '2027-03-01' ? todayString : '2027-03-01')
-    : todayString;
+  const minDate =
+    type === 'island' || type === 'island_hides'
+      ? (today > '2027-03-01' ? today : '2027-03-01')
+      : today;
 
   $('start').min = minDate;
   $('start').max = type === 'island_hides'
-    ? addDays(todayString,14)
+    ? addDays(today,14)
     : '';
 
-  if ($('start').value && $('start').value < minDate) {
-    $('start').value = '';
-  }
-  if ($('start').max && $('start').value > $('start').max) {
+  $('startbox').hidden = closed;
+  $('start').disabled = closed;
+  $('calculate').disabled = closed;
+  $('reserve').disabled = closed;
+
+  $('dateNotice').hidden = !closed;
+  $('dateNotice').textContent = closed
+    ? 'Island Wildlife Hides open in March 2027. Bookings will become available 14 days before your chosen session. Please return closer to the opening date.'
+    : '';
+
+  if (
+    closed ||
+    ($('start').value && $('start').value < minDate) ||
+    ($('start').max && $('start').value > $('start').max)
+  ) {
     $('start').value = '';
   }
 
   $('end').min = $('start').value || minDate;
-  $('result').textContent = 'Select your dates to calculate an estimated price.';
+  $('result').textContent = closed
+    ? 'Island Wildlife Hides: £75 for one person or £100 for two. Exclusive daytime use of all three island hides.'
+    : 'Select your dates to calculate an estimated price.';
+
   $('reserveStatus').textContent = '';
 }
 
 $('type').addEventListener('change', toggle);
+
 $('start').addEventListener('change', () => {
-  $('end').min = $('start').value || todayString;
+  $('end').min = $('start').value || localToday();
 });
+
 toggle();
 
 function calculate() {
@@ -427,19 +489,30 @@ function calculate() {
   const guests = Number($('guests').value);
   const start = $('start').value;
   const end = $('end').value;
+  const today = localToday();
 
-  if (!start || start < todayString) {
+  if (type === 'island_hides' && islandHidesNotOpen()) {
+    throw new Error('Island Wildlife Hides bookings are not open yet.');
+  }
+
+  if (!start || start < today) {
     throw new Error('Please choose a valid date.');
   }
 
-  if ((type === 'island' || type === 'island_hides') &&
-      start < '2027-03-01') {
+  if (
+    (type === 'island' || type === 'island_hides') &&
+    start < '2027-03-01'
+  ) {
     throw new Error('Island bookings start from March 2027.');
   }
 
-  if (type === 'island_hides' &&
-      start > addDays(todayString,14)) {
-    throw new Error('Island hides can only be booked up to 14 days ahead.');
+  if (
+    type === 'island_hides' &&
+    start > addDays(today,14)
+  ) {
+    throw new Error(
+      'Island hides can only be booked up to 14 days ahead.'
+    );
   }
 
   if (isHide(type)) {
@@ -449,13 +522,17 @@ function calculate() {
 
     return {
       price: guests === 1 ? 75 : 100,
-      description: session === 'day'
-        ? 'Daytime wildlife hide · 7am–5pm'
-        : 'Overnight wildlife hide · 6pm–6am next day'
+      description: type === 'island_hides'
+        ? 'Exclusive Island Wildlife Hides · Daytime 7am–5pm'
+        : session === 'day'
+          ? 'Separate Wildlife Hide · Daytime 7am–5pm'
+          : 'Separate Wildlife Hide · Overnight 6pm–6am next day'
     };
   }
 
-  if (!end) throw new Error('Please choose a departure date.');
+  if (!end) {
+    throw new Error('Please choose a departure date.');
+  }
 
   const nights = Math.round(
     (new Date(end+'T12:00:00') -
@@ -474,18 +551,21 @@ function calculate() {
 
   return {
     price: nights * (type === 'island' ? 250 : 300),
-    description: nights + ' nights · Check-in 3pm · Check-out 10:30am'
+    description: nights +
+      ' nights · Check-in 3pm · Check-out 10:30am'
   };
 }
 
 $('calculate').addEventListener('click', () => {
   try {
     const result = calculate();
+
     $('result').textContent =
       result.description +
       '. Total: £' + result.price.toFixed(2) +
       '. Full payment is requested after approval. ' +
       'Availability is subject to confirmation.';
+
   } catch (error) {
     $('result').textContent = error.message;
   }
@@ -494,6 +574,7 @@ $('calculate').addEventListener('click', () => {
 $('reserve').addEventListener('click', async () => {
   const button = $('reserve');
   const status = $('reserveStatus');
+
   if (button.disabled) return;
 
   const type = $('type').value;
@@ -502,12 +583,14 @@ $('reserve').addEventListener('click', async () => {
   const phone = $('guestPhone').value.trim();
 
   if (!$('agreeTerms').checked) {
-    status.textContent = 'Please accept the booking request terms.';
+    status.textContent =
+      'Please accept the booking request terms.';
     return;
   }
 
   if (!name || !email || !$('guestEmail').checkValidity()) {
-    status.textContent = 'Please enter your name and a valid email.';
+    status.textContent =
+      'Please enter your name and a valid email.';
     return;
   }
 
@@ -542,12 +625,15 @@ $('reserve').addEventListener('click', async () => {
     const data = await response.json();
 
     if (!response.ok || !data.success) {
-      throw new Error(data.error || 'Booking request could not be sent.');
+      throw new Error(
+        data.error || 'Booking request could not be sent.'
+      );
     }
 
     status.textContent =
       'Your booking request has been sent for review. ' +
       'This is not a confirmed reservation.';
+
     button.textContent = 'Request sent';
 
   } catch (error) {
@@ -557,5 +643,6 @@ $('reserve').addEventListener('click', async () => {
   }
 });
 </script>
+
 </body>
 </html>
