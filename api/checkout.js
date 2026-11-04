@@ -102,7 +102,7 @@ export default async function handler(req, res) {
     }
 
     departure = end_date;
-    totalPence = nights * 30000;
+    totalPence = nights * (type === 'island' ? 25000 : 30000);
   }
 
   if (!process.env.DATABASE_URL ||
