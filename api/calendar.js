@@ -175,7 +175,8 @@ export default async function handler(req, res) {
       experience: b.experience,
       start: dateOnly(b.start_date),
       end: dateOnly(b.end_date),
-      reason: b.reason || 'Blocked'
+    reason: b.reason || 'Blocked',
+session: b.session || 'all'
     }));
 
     const safeJson = value => JSON.stringify(value)
