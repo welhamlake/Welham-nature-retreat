@@ -38,18 +38,93 @@ function ukToday() {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-function error(res, status, message) {
+function sendError(res, status, message) {
   return res.status(status).json({
     available: false,
     error: message
   });
 }
 
+function unavailable(res) {
+  return res.status(200).json({
+    available: false,
+    message: 'These dates are unavailable.'
+  });
+}
+
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function bookingRange(type, start, end) {
+  if (type === 'hide' || type === 'island_hides') {
+    return [start, addDays(start, 1)];
+  }
+
+  if (!end) return null;
+
+  return [
+    start,
+    type === 'island' ? addDays(end, 1) : end
+  ];
+}
+
+function bookingConflict(request, existing) {
+  const islandRequest =
+    request.type === 'island' ||
+    request.type === 'island_hides';
+
+  const islandExisting =
+    existing.type === 'island' ||
+    existing.type === 'island_hides';
+
+  if (islandRequest && islandExisting) {
+    const a = bookingRange(
+      request.type,
+      request.start,
+      request.end
+    );
+
+    const b = bookingRange(
+      existing.type,
+      existing.start,
+      existing.end
+    );
+
+    return !!b && overlaps(a[0], a[1], b[0], b[1]);
+  }
+
+  if (request.type !== existing.type) return false;
+
+  if (request.type === 'hide') {
+    return request.start === existing.start &&
+      (
+        !existing.session ||
+        existing.session === 'all' ||
+        request.session === existing.session
+      );
+  }
+
+  const a = bookingRange(
+    request.type,
+    request.start,
+    request.end
+  );
+
+  const b = bookingRange(
+    existing.type,
+    existing.start,
+    existing.end
+  );
+
+  return !!b && overlaps(a[0], a[1], b[0], b[1]);
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'GET') {
-    return error(res, 405, 'Method not allowed');
+    return sendError(res, 405, 'Method not allowed');
   }
 
   const {
@@ -59,34 +134,36 @@ export default async function handler(req, res) {
     session
   } = req.query || {};
 
-  if (
-    !TYPES.includes(type) ||
-    !validDate(start_date)
-  ) {
-    return error(res, 400, 'Please choose a valid experience and date.');
+  if (!TYPES.includes(type) || !validDate(start_date)) {
+    return sendError(
+      res, 400, 'Please choose a valid experience and date.'
+    );
   }
 
   const today = ukToday();
 
   if (start_date < today) {
-    return error(res, 400, 'Please choose a future or current date.');
+    return sendError(
+      res, 400, 'Please choose a current or future date.'
+    );
   }
 
   if (
-    (type === 'island' || type === 'island_hides') &&
+    ['island', 'island_hides'].includes(type) &&
     start_date < '2027-03-01'
   ) {
-    return error(res, 400, 'Island bookings open from March 2027.');
+    return sendError(
+      res, 400, 'Island bookings start from March 2027.'
+    );
   }
 
   if (
     type === 'island_hides' &&
     start_date > addDays(today, 14)
   ) {
-    return error(
-      res,
-      400,
-      'Island wildlife hides can only be booked 14 days ahead.'
+    return sendError(
+      res, 400,
+      'Island hides can only be booked up to 14 days ahead.'
     );
   }
 
@@ -100,13 +177,17 @@ export default async function handler(req, res) {
       (type === 'island_hides' && session !== 'day') ||
       (type === 'hide' && !['day', 'night'].includes(session))
     ) {
-      return error(res, 400, 'Please select a valid hide session.');
+      return sendError(
+        res, 400, 'Please select a valid hide session.'
+      );
     }
 
     hideSession = session;
   } else {
     if (!validDate(end_date)) {
-      return error(res, 400, 'Please choose a departure date.');
+      return sendError(
+        res, 400, 'Please select a departure date.'
+      );
     }
 
     const nights = Math.round(
@@ -117,23 +198,21 @@ export default async function handler(req, res) {
     );
 
     if (nights < 2 || nights > 60) {
-      return error(
-        res,
-        400,
-        'Accommodation bookings require between 2 and 60 nights.'
+      return sendError(
+        res, 400,
+        'Accommodation requires between 2 and 60 nights.'
       );
     }
 
     if (type === 'cabin') {
-      const arrivalDay = new Date(
+      const day = new Date(
         start_date + 'T12:00:00Z'
       ).getUTCDay();
 
-      if (arrivalDay === 0 || arrivalDay === 6) {
-        return error(
-          res,
-          400,
-          'Cabin arrivals are Monday to Friday only.'
+      if (day === 0 || day === 6) {
+        return sendError(
+          res, 400,
+          'Cabin arrivals are Monday to Friday.'
         );
       }
     }
@@ -142,17 +221,24 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.DATABASE_URL) {
-    return error(res, 503, 'Availability service is not configured.');
+    return sendError(
+      res, 503, 'Availability service is not configured.'
+    );
   }
 
-  const rangeEnd = isHide
-    ? addDays(start_date, 1)
-    : type === 'island'
-      ? addDays(departure, 1)
-      : departure;
+  const request = {
+    type,
+    start: start_date,
+    end: departure,
+    session: hideSession
+  };
+
+  const range = bookingRange(
+    type, start_date, departure
+  );
 
   const relatedTypes =
-    type === 'island' || type === 'island_hides'
+    ['island', 'island_hides'].includes(type)
       ? ['island', 'island_hides']
       : [type];
 
@@ -169,109 +255,79 @@ export default async function handler(req, res) {
   });
 
   try {
+    // First check owner-blocked dates.
     const blocks = await pool.query(
-      `SELECT 1
+      `SELECT
+         experience,
+         start_date::text AS start_date,
+         end_date::text AS end_date,
+         session
        FROM public.blocked_dates
-       WHERE experience = ANY($1::text[])
-         AND daterange(
-           start_date,
-           end_date + 1,
-           '[)'
-         ) && daterange(
-           $2::date,
-           $3::date,
-           '[)'
-         )
-         AND (
-           $4::boolean = true
-           OR session IS NULL
-           OR session = 'all'
-           OR session = $5
-         )
-       LIMIT 1`,
-      [
-        relatedTypes,
-        start_date,
-        rangeEnd,
-        relatedTypes.includes('island'),
-        hideSession
-      ]
+       WHERE experience = ANY($1::text[])`,
+      [relatedTypes]
     );
 
-    if (blocks.rowCount > 0) {
-      return res.status(200).json({
-        available: false,
-        message: 'These dates are unavailable.'
-      });
+    for (const block of blocks.rows) {
+      const blockEnd = addDays(block.end_date, 1);
+
+      if (!overlaps(
+        range[0], range[1],
+        block.start_date, blockEnd
+      )) continue;
+
+      const island =
+        type === 'island' ||
+        type === 'island_hides';
+
+      if (
+        island ||
+        !isHide ||
+        !block.session ||
+        block.session === 'all' ||
+        block.session === hideSession
+      ) {
+        return unavailable(res);
+      }
     }
 
+    // Now check bookings using simple database retrieval.
+    // Date comparisons are performed in JavaScript to
+    // avoid the previous complex SQL query.
     const bookings = await pool.query(
-      `SELECT 1
+      `SELECT
+         type,
+         start_date::text AS start_date,
+         end_date::text AS end_date,
+         session,
+         status,
+         expires_at
        FROM public.bookings
-       WHERE status = ANY($1::text[])
-         AND (
-           status <> 'pending'
-           OR expires_at IS NULL
-           OR expires_at > NOW()
-         )
-         AND (
-           (
-             type = $2
-             AND (
-               (
-                 $2 IN ('hide', 'island_hides')
-                 AND start_date = $3::date
-                 AND session = $5
-               )
-               OR (
-                 $2 IN ('cabin', 'island')
-                 AND daterange(
-                   start_date,
-                   CASE
-                     WHEN type = 'island'
-                     THEN end_date + 1
-                     ELSE end_date
-                   END,
-                   '[)'
-                 ) && daterange(
-                   $3::date,
-                   $4::date,
-                   '[)'
-               )
-             )
-           )
-           OR (
-             $2 IN ('island', 'island_hides')
-             AND type IN ('island', 'island_hides')
-             AND daterange(
-               start_date,
-               CASE
-                 WHEN type = 'island'
-                 THEN end_date + 1
-                 ELSE start_date + 1
-               END,
-               '[)'
-             ) && daterange(
-               $3::date,
-               $4::date,
-               '[)'
-           )
-         )
-       LIMIT 1`,
-      [
-        ACTIVE,
-        type,
-        start_date,
-        rangeEnd,
-        hideSession
-      ]
+       WHERE type = ANY($1::text[])
+         AND status = ANY($2::text[])`,
+      [relatedTypes, ACTIVE]
     );
 
-    if (bookings.rowCount > 0) {
-      return res.status(200).json({
-        available: false,
-        message: 'These dates are unavailable.'
-      });
+    const now = Date.now();
+
+    for (const booking of bookings.rows) {
+      if (
+        booking.status === 'pending' &&
+        booking.expires_at &&
+        new Date(booking.expires_at).getTime() <= now
+      ) {
+        continue;
+      }
+
+      const existing = {
+        type: booking.type,
+        start: booking.start_date,
+        end: booking.end_date,
+        session: booking.session
+      };
+
+      if (bookingConflict(request, existing)) {
+        return unavailable(res);
+      }
     }
 
     return res.status(200).json({
@@ -285,9 +341,8 @@ export default async function handler(req, res) {
       err.code || err.message
     );
 
-    return error(
-      res,
-      500,
+    return sendError(
+      res, 500,
       'Unable to check availability. Please try again.'
     );
 
