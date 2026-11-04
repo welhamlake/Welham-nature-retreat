@@ -4,10 +4,32 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 const { Pool } = pg;
 
+const experiences = [
+  'Luxury Cabin',
+  'Island Glamping',
+  'Separate Wildlife Hide',
+  'Island Wildlife Hides'
+];
+
+const hideExperiences = [
+  'Separate Wildlife Hide',
+  'Island Wildlife Hides'
+];
+
+const reasons = [
+  'Maintenance',
+  'Private use',
+  'Airbnb booking',
+  'Other'
+];
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;',
-    '"': '&quot;', "'": '&#39;'
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
   })[c]);
 }
 
@@ -16,6 +38,16 @@ function passwordMatches(input, expected) {
   const a = createHash('sha256').update(input).digest();
   const b = createHash('sha256').update(expected).digest();
   return timingSafeEqual(a, b);
+}
+
+function validDate(value) {
+  if (typeof value !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const date = new Date(value + 'T12:00:00Z');
+
+  return !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value;
 }
 
 function page(content) {
@@ -36,20 +68,19 @@ input,select,button{font:inherit;width:100%;padding:13px;margin:8px 0;border-rad
 input,select{border:1px solid #aaa}
 button{background:#234735;color:white;border:0;font-weight:bold}
 a{color:#234735}
+.message{padding:12px;background:#e8f2e9;border-radius:8px}
+.error{background:#fff0ed}
 </style>
 </head>
 <body>
-<header><h2>Welham Nature Retreat</h2>Manage Blocked Dates</header>
+<header>
+<h2>Welham Nature Retreat</h2>
+Manage Blocked Dates
+</header>
 <main>${content}</main>
-</body></html>`;
+</body>
+</html>`;
 }
-
-const experiences = [
-  'Luxury Cabin',
-  'Island Glamping',
-  'Separate Wildlife Hide',
-  'Island Wildlife Hides'
-];
 
 function form(message = '') {
   const options = experiences.map(x =>
@@ -60,26 +91,63 @@ function form(message = '') {
     <div class="card">
       <h2>Block Dates</h2>
       ${message}
+
       <form method="POST" action="/api/calendar-block">
-        <label>Experience</label>
-        <select name="experience" required>${options}</select>
-        <label>First blocked date</label>
-        <input type="date" name="start_date" required>
-        <label>Last blocked date</label>
-        <input type="date" name="end_date" required>
-        <label>Reason</label>
-        <select name="reason">
+        <label for="experience">Experience</label>
+        <select id="experience" name="experience" required>
+          ${options}
+        </select>
+
+        <label for="session">Session to block</label>
+        <select id="session" name="session" required>
+          <option value="all">Whole day / All sessions</option>
+          <option value="day">Daytime only (7am–5pm)</option>
+          <option value="night">Overnight only (6pm–6am)</option>
+        </select>
+
+        <label for="start_date">First blocked date</label>
+        <input id="start_date" type="date" name="start_date" required>
+
+        <label for="end_date">Last blocked date</label>
+        <input id="end_date" type="date" name="end_date" required>
+
+        <label for="reason">Reason</label>
+        <select id="reason" name="reason">
           <option>Maintenance</option>
           <option>Private use</option>
           <option>Airbnb booking</option>
           <option>Other</option>
         </select>
-        <label>Owner password</label>
-        <input type="password" name="password" required>
+
+        <label for="password">Owner password</label>
+        <input id="password" type="password" name="password" required>
+
         <button type="submit">Block Dates</button>
       </form>
     </div>
+
     <p><a href="/api/calendar">Return to calendar</a></p>
+
+    <script>
+      const experience = document.getElementById('experience');
+      const session = document.getElementById('session');
+
+      function updateSession() {
+        const isHide = [
+          'Separate Wildlife Hide',
+          'Island Wildlife Hides'
+        ].includes(experience.value);
+
+        session.disabled = !isHide;
+
+        if (!isHide) {
+          session.value = 'all';
+        }
+      }
+
+      experience.addEventListener('change', updateSession);
+      updateSession();
+    </script>
   `);
 }
 
@@ -101,28 +169,44 @@ export default async function handler(req, res) {
     ? Object.fromEntries(new URLSearchParams(req.body))
     : req.body || {};
 
-  if (!passwordMatches(body.password, process.env.BOOKING_ADMIN_PASSWORD)) {
-    return res.status(403).send(form('<p>Incorrect password.</p>'));
+  if (!passwordMatches(
+    body.password,
+    process.env.BOOKING_ADMIN_PASSWORD
+  )) {
+    return res.status(403).send(
+      form('<p class="message error">Incorrect password.</p>')
+    );
   }
 
-  const { experience, start_date, end_date, reason } = body;
-  const validDate = x =>
-    typeof x === 'string' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(x) &&
-    !Number.isNaN(Date.parse(x)) &&
-    new Date(x).toISOString().slice(0, 10) === x;
+  const {
+    experience,
+    start_date,
+    end_date,
+    reason
+  } = body;
 
-  if (!experiences.includes(experience) ||
-      !validDate(start_date) ||
-      !validDate(end_date) ||
-      end_date < start_date ||
-      (Date.parse(end_date) - Date.parse(start_date)) / 86400000 > 366 ||
-      !['Maintenance','Private use','Airbnb booking','Other'].includes(reason)) {
-    return res.status(400).send(form('<p>Invalid dates or experience.</p>'));
+  const session = hideExperiences.includes(experience)
+    ? (body.session || 'all')
+    : 'all';
+
+  if (
+    !experiences.includes(experience) ||
+    !validDate(start_date) ||
+    !validDate(end_date) ||
+    end_date < start_date ||
+    (Date.parse(end_date) - Date.parse(start_date)) / 86400000 > 366 ||
+    !reasons.includes(reason) ||
+    !['all', 'day', 'night'].includes(session)
+  ) {
+    return res.status(400).send(
+      form('<p class="message error">Invalid booking block details.</p>')
+    );
   }
 
   if (!process.env.DATABASE_URL) {
-    return res.status(503).send(form('<p>Database unavailable.</p>'));
+    return res.status(503).send(
+      form('<p class="message error">Database unavailable.</p>')
+    );
   }
 
   const pool = new Pool({
@@ -140,21 +224,34 @@ export default async function handler(req, res) {
   try {
     await pool.query(
       `INSERT INTO public.blocked_dates
-       (experience, start_date, end_date, reason)
-       VALUES ($1, $2, $3, $4)`,
-      [experience, start_date, end_date, reason]
+       (experience, start_date, end_date, reason, session)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [experience, start_date, end_date, reason, session]
     );
 
-    return res.status(200).send(form(
-      `<p><strong>Dates blocked successfully!</strong></p>
-       <p>${escapeHtml(experience)}:
-       ${escapeHtml(start_date)} to ${escapeHtml(end_date)}</p>`
-    ));
+    const sessionLabel = {
+      all: 'Whole day / All sessions',
+      day: 'Daytime only',
+      night: 'Overnight only'
+    }[session];
+
+    return res.status(200).send(form(`
+      <div class="message">
+        <strong>Dates blocked successfully!</strong>
+        <p>${escapeHtml(experience)}</p>
+        <p>${escapeHtml(start_date)} to ${escapeHtml(end_date)}</p>
+        <p>Session: ${escapeHtml(sessionLabel)}</p>
+      </div>
+    `));
   } catch (error) {
-    console.error('Calendar block error:', error.code || error.message);
-    return res.status(500).send(form(
-      '<p>Unable to save blocked dates.</p>'
-    ));
+    console.error(
+      'Calendar block error:',
+      error.code || error.message
+    );
+
+    return res.status(500).send(
+      form('<p class="message error">Unable to save blocked dates.</p>')
+    );
   } finally {
     await pool.end();
   }
