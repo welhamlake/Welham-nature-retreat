@@ -337,7 +337,8 @@ session: b.session || 'all'
             div.style.borderLeft = '5px solid #d65757';
             div.textContent =
               'BLOCKED — ' + b.experience +
-              ' | ' + b.reason +
+              ' | ' + (b.session === 'all' ? 'Whole day' : b.session === 'day' ? 'Daytime' : 'Overnight') +
+' | ' + b.reason +
               ' | ' + b.start + ' to ' + b.end;
             details.appendChild(div);
           });
