@@ -3,6 +3,7 @@ import pg from 'pg';
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 const { Pool } = pg;
+
 const experiences = [
   'Luxury Cabin',
   'Island Glamping',
@@ -19,9 +20,29 @@ function passwordMatches(input, expected) {
 
 function dateOnly(value) {
   if (!value) return '';
-  return value instanceof Date
-    ? value.toISOString().slice(0, 10)
-    : String(value).slice(0, 10);
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+  return String(value).slice(0, 10);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[c]);
+}
+
+function safeJson(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 function page(content) {
@@ -32,7 +53,7 @@ function page(content) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
-<title>Welham Booking Calendar</title>
+<title>Welham Owner Booking Calendar</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f3f5f1;color:#243328;font:15px Arial,sans-serif}
@@ -72,7 +93,14 @@ button,.action{background:#234735;color:white;border:0;font-weight:bold;cursor:p
 .event.other{background:#dce1dc}
 .event.blocked{background:#f6bcbc;color:#741d1d}
 .details{margin-top:12px}
-.booking{padding:12px;border:1px solid #ddd;border-radius:8px;margin:8px 0}
+.booking{padding:12px;border:1px solid #ddd;border-radius:8px;margin:8px 0;overflow-wrap:anywhere}
+.booking p{margin:7px 0}
+.remove{background:#b93838;color:white;padding:10px 15px;margin-top:10px}
+.removeForm{margin-top:12px}
+.removeForm label{display:block;font-weight:bold}
+.removeForm input{max-width:360px}
+.message{padding:15px;border-radius:8px;background:#e7f2e9}
+.error{background:#fff0ed}
 small{color:#627064}
 @media(min-width:650px){
 .day{min-height:110px;padding:7px}
@@ -81,50 +109,32 @@ small{color:#627064}
 </style>
 </head>
 <body>
-<header><h1>Welham Nature Retreat</h1>Owner Booking Calendar</header>
+<header>
+<h1>Welham Nature Retreat</h1>
+Owner Booking Calendar
+</header>
 <main>${content}</main>
 </body>
 </html>`;
 }
 
-export default async function handler(req, res) {
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+function login(message = '') {
+  return page(`
+    <div class="panel login">
+      <h2>Calendar Login</h2>
+      ${message}
+      <form method="POST" action="/api/calendar">
+        <label for="password">Owner password</label>
+        <input id="password" name="password"
+          type="password" autocomplete="current-password" required>
+        <button type="submit">Open Calendar</button>
+      </form>
+    </div>
+  `);
+}
 
-  if (req.method === 'GET') {
-    return res.status(200).send(page(`
-      <div class="panel login">
-        <h2>Calendar Login</h2>
-        <form method="POST" action="/api/calendar">
-          <label for="password">Owner password</label>
-          <input id="password" name="password" type="password"
-                 autocomplete="current-password" required>
-          <button type="submit">Open Calendar</button>
-        </form>
-      </div>`));
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).send(page('Method not allowed'));
-  }
-
-  const password = typeof req.body === 'string'
-    ? new URLSearchParams(req.body).get('password')
-    : req.body?.password;
-
-  if (!passwordMatches(password, process.env.BOOKING_ADMIN_PASSWORD)) {
-    return res.status(403).send(page(
-      '<div class="panel">Incorrect password. <a href="/api/calendar">Try again</a></div>'
-    ));
-  }
-
-  if (!process.env.DATABASE_URL) {
-    return res.status(503).send(page('Database unavailable'));
-  }
-
-  const pool = new Pool({
+function poolConnection() {
+  return new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: true,
@@ -135,8 +145,96 @@ export default async function handler(req, res) {
     max: 1,
     connectionTimeoutMillis: 5000
   });
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+  if (req.method === 'GET') {
+    return res.status(200).send(login());
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).send(page('Method not allowed'));
+  }
+
+  const body = typeof req.body === 'string'
+    ? Object.fromEntries(new URLSearchParams(req.body))
+    : req.body || {};
+
+  if (!passwordMatches(
+    body.password,
+    process.env.BOOKING_ADMIN_PASSWORD
+  )) {
+    return res.status(403).send(login(
+      '<p class="message error">Incorrect owner password.</p>'
+    ));
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return res.status(503).send(page('Database unavailable'));
+  }
+
+  const pool = poolConnection();
 
   try {
+    // Secure removal of one specifically identified block.
+    if (body.action === 'remove_block') {
+      const id = String(body.block_id || '');
+      const experience = String(body.experience || '');
+      const start = String(body.start_date || '');
+      const end = String(body.end_date || '');
+
+      if (
+        !/^[1-9]\d*$/.test(id) ||
+        !experiences.includes(experience) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(start) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(end)
+      ) {
+        return res.status(400).send(page(
+          '<div class="panel">Invalid block details. No changes made.</div>'
+        ));
+      }
+
+      const deleted = await pool.query(
+        `DELETE FROM public.blocked_dates
+         WHERE id = $1
+           AND experience = $2
+           AND start_date = $3::date
+           AND end_date = $4::date
+         RETURNING id`,
+        [id, experience, start, end]
+      );
+
+      if (deleted.rowCount !== 1) {
+        return res.status(404).send(page(`
+          <div class="panel">
+            <p class="message error">
+              Block not found. No changes made.
+            </p>
+            <a href="/api/calendar">Return to calendar</a>
+          </div>
+        `));
+      }
+
+      return res.status(200).send(page(`
+        <div class="panel">
+          <h2>Block removed successfully</h2>
+          <p class="message">
+            ${escapeHtml(experience)}<br>
+            ${escapeHtml(start)} to ${escapeHtml(end)}
+          </p>
+          <p>Only this selected block was removed.</p>
+          <a class="action" href="/api/calendar">
+            Return to calendar
+          </a>
+        </div>
+      `));
+    }
+
     const [bookingResult, blockResult] = await Promise.all([
       pool.query(`
         SELECT request_reference, guest_name, type,
@@ -149,7 +247,8 @@ export default async function handler(req, res) {
         LIMIT 2000
       `),
       pool.query(`
-        SELECT id, experience, start_date, end_date, reason,session
+        SELECT id, experience, start_date, end_date,
+               reason, session
         FROM public.blocked_dates
         WHERE end_date >= CURRENT_DATE - INTERVAL '2 years'
           AND start_date < CURRENT_DATE + INTERVAL '3 years'
@@ -171,20 +270,13 @@ export default async function handler(req, res) {
     }));
 
     const blocks = blockResult.rows.map(b => ({
-      id: b.id,
+      id: String(b.id),
       experience: b.experience,
       start: dateOnly(b.start_date),
       end: dateOnly(b.end_date),
-    reason: b.reason || 'Blocked',
-session: b.session || 'all'
+      reason: b.reason || 'Blocked',
+      session: b.session || 'all'
     }));
-
-    const safeJson = value => JSON.stringify(value)
-      .replace(/</g, '\\u003c')
-      .replace(/>/g, '\\u003e')
-      .replace(/&/g, '\\u0026')
-      .replace(/\u2028/g, '\\u2028')
-      .replace(/\u2029/g, '\\u2029');
 
     return res.status(200).send(page(`
       <div class="panel">
@@ -193,6 +285,7 @@ session: b.session || 'all'
           <strong id="monthTitle"></strong>
           <button type="button" id="next">Next ›</button>
         </div>
+
         <div class="legend">
           <span><i class="dot green"></i>Paid</span>
           <span><i class="dot amber"></i>Pending</span>
@@ -200,6 +293,7 @@ session: b.session || 'all'
           <span><i class="dot red"></i>Blocked</span>
           <span><i class="dot grey"></i>Other</span>
         </div>
+
         <p>
           <a class="action" href="/api/calendar-block">
             + Block Dates
@@ -221,9 +315,10 @@ session: b.session || 'all'
       </div>
 
       <p><small>
-        Owner-only calendar. Red blocks are shown here but do not yet
-        prevent customer requests. An empty day does not guarantee
-        availability. Declined, cancelled and expired bookings are hidden.
+        Owner-only calendar. Blocked dates and bookings
+        are checked by the customer availability service.
+        Always confirm payment before treating a request
+        as a confirmed reservation.
       </small></p>
 
       <script id="bookingData" type="application/json">${safeJson(bookings)}</script>
@@ -246,8 +341,8 @@ session: b.session || 'all'
         const details = document.getElementById('details');
         const filters = document.getElementById('filters');
         const title = document.getElementById('monthTitle');
-        const now = new Date();
 
+        const now = new Date();
         let year = now.getFullYear();
         let month = now.getMonth();
         let selectedFilter = 'All';
@@ -258,12 +353,17 @@ session: b.session || 'all'
           if (t.includes('cabin') || t.includes('luxury')) {
             return 'Luxury Cabin';
           }
-          if (t.includes('island') &&
-              (t.includes('hide') || t.includes('wildlife'))) {
+          if (
+            t.includes('island') &&
+            (t.includes('hide') || t.includes('wildlife'))
+          ) {
             return 'Island Wildlife Hides';
           }
-          if (t.includes('island') || t.includes('bell') ||
-              t.includes('glamp')) {
+          if (
+            t.includes('island') ||
+            t.includes('bell') ||
+            t.includes('glamp')
+          ) {
             return 'Island Glamping';
           }
           if (t.includes('hide') || t.includes('wildlife')) {
@@ -273,9 +373,9 @@ session: b.session || 'all'
         }
 
         function active(b) {
-          return !['declined', 'cancelled', 'expired'].includes(
-            String(b.status).toLowerCase()
-          );
+          return ![
+            'declined','cancelled','expired'
+          ].includes(String(b.status).toLowerCase());
         }
 
         function visibleType(type) {
@@ -307,39 +407,120 @@ session: b.session || 'all'
           );
         }
 
+        function addText(parent, tag, value) {
+          const el = document.createElement(tag);
+          el.textContent = value;
+          parent.appendChild(el);
+          return el;
+        }
+
+        function addHidden(form, name, value) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        }
+
+        function sessionLabel(session) {
+          if (session === 'day') return 'Daytime';
+          if (session === 'night') return 'Overnight';
+          return 'Whole day';
+        }
+
         function showDetails(date) {
           details.replaceChildren();
 
-          const heading = document.createElement('h3');
-          heading.textContent = new Date(
-            date + 'T12:00:00'
-          ).toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-          });
-          details.appendChild(heading);
+          addText(
+            details,
+            'h3',
+            new Date(date + 'T12:00:00')
+              .toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              })
+          );
 
           const foundBookings = bookingsOn(date);
           const foundBlocks = blocksOn(date);
 
           if (!foundBookings.length && !foundBlocks.length) {
-            const p = document.createElement('p');
-            p.textContent =
-              'No bookings or manual blocks recorded for this date.';
-            details.appendChild(p);
+            addText(
+              details,
+              'p',
+              'No bookings or manual blocks recorded for this date.'
+            );
           }
 
           foundBlocks.forEach(b => {
             const div = document.createElement('div');
             div.className = 'booking';
             div.style.borderLeft = '5px solid #d65757';
-            div.textContent =
-              'BLOCKED — ' + b.experience +
-              ' | ' + (b.session === 'all' ? 'Whole day' : b.session === 'day' ? 'Daytime' : 'Overnight') +
-' | ' + b.reason +
-              ' | ' + b.start + ' to ' + b.end;
+
+            addText(
+              div,
+              'strong',
+              'BLOCKED — ' + b.experience
+            );
+
+            addText(
+              div,
+              'p',
+              sessionLabel(b.session) +
+              ' | ' + b.reason
+            );
+
+            addText(
+              div,
+              'p',
+              b.start + ' to ' + b.end
+            );
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/api/calendar';
+            form.className = 'removeForm';
+
+            addHidden(form, 'action', 'remove_block');
+            addHidden(form, 'block_id', b.id);
+            addHidden(form, 'experience', b.experience);
+            addHidden(form, 'start_date', b.start);
+            addHidden(form, 'end_date', b.end);
+
+            const label = addText(
+              form,
+              'label',
+              'Owner password to remove this block'
+            );
+
+            const password = document.createElement('input');
+            password.type = 'password';
+            password.name = 'password';
+            password.autocomplete = 'current-password';
+            password.required = true;
+            label.appendChild(password);
+
+            const button = document.createElement('button');
+            button.type = 'submit';
+            button.className = 'remove';
+            button.textContent = 'Remove Block';
+            form.appendChild(button);
+
+            form.addEventListener('submit', event => {
+              const confirmed = window.confirm(
+                'Remove this block for ' +
+                b.experience +
+                ' (' + b.start + ' to ' + b.end + ')?'
+              );
+
+              if (!confirmed) {
+                event.preventDefault();
+              }
+            });
+
+            div.appendChild(form);
             details.appendChild(div);
           });
 
@@ -359,14 +540,15 @@ session: b.session || 'all'
             ];
 
             lines.forEach((line, i) => {
-              const p = document.createElement(
-                i === 0 ? 'strong' : 'p'
-              );
-              p.textContent = line;
-              div.appendChild(p);
+              addText(div, i === 0 ? 'strong' : 'p', line);
             });
 
             details.appendChild(div);
+          });
+
+          details.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
           });
         }
 
@@ -444,26 +626,26 @@ session: b.session || 'all'
               cell.classList.add('today');
             }
 
-            const number = document.createElement('div');
-            number.className = 'daynum';
-            number.textContent = day;
-            cell.appendChild(number);
+            addText(cell, 'div', String(day))
+              .className = 'daynum';
 
             blocksOn(date).forEach(b => {
-              const event = document.createElement('span');
+              const event = addText(
+                cell,
+                'span',
+                'Blocked: ' + b.experience +
+                ' (' + sessionLabel(b.session) + ')'
+              );
               event.className = 'event blocked';
-            event.textContent = 'Blocked: ' + b.experience +
-  ' (' + (b.session === 'all' ? 'Whole day' :
-  b.session === 'day' ? 'Daytime' : 'Overnight') + ')';
-              cell.appendChild(event);
             });
 
             bookingsOn(date).forEach(b => {
-              const event = document.createElement('span');
+              const event = addText(
+                cell,
+                'span',
+                b.type + (b.session ? ' ' + b.session : '')
+              );
               event.className = 'event ' + colour(b);
-              event.textContent =
-                b.type + (b.session ? ' ' + b.session : '');
-              cell.appendChild(event);
             });
 
             cell.addEventListener('click', () => {
@@ -474,40 +656,41 @@ session: b.session || 'all'
           }
         }
 
-        document.getElementById('prev').addEventListener(
-          'click', () => {
+        document.getElementById('prev')
+          .addEventListener('click', () => {
             month--;
             if (month < 0) {
               month = 11;
               year--;
             }
             render();
-          }
-        );
+          });
 
-        document.getElementById('next').addEventListener(
-          'click', () => {
+        document.getElementById('next')
+          .addEventListener('click', () => {
             month++;
             if (month > 11) {
               month = 0;
               year++;
             }
             render();
-          }
-        );
+          });
 
         render();
       })();
       </script>
     `));
+
   } catch (error) {
     console.error(
       'Calendar error:',
       error.code || error.message
     );
+
     return res.status(500).send(page(
-      '<div class="panel">Unable to load calendar.</div>'
+      '<div class="panel">Unable to update or load calendar.</div>'
     ));
+
   } finally {
     await pool.end();
   }
