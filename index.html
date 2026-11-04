@@ -247,7 +247,7 @@ h1{font-size:3.1rem}
 <div class="center">
 <span class="eyebrow">Plan your visit</span>
 <h2>Explore your booking</h2>
-<p>Choose your experience and dates, then send a request for manual approval. Availability is checked before a request is accepted.</p>
+<p>Choose your experience and dates, check live availability, then send a request for manual approval.</p>
 </div>
 
 <div class="booking">
@@ -297,11 +297,11 @@ This is a booking request, not a confirmed reservation. Requests are held provis
 <div id="dateNotice" hidden role="status" aria-live="polite"></div>
 
 <div id="result" class="total" aria-live="polite">
-Select your dates to calculate an estimated price.
+Select your dates to check availability and calculate a price.
 </div>
 
 <button class="btn" type="button" id="calculate">
-Calculate estimated price
+Check availability &amp; calculate price
 </button>
 
 <div id="liveBooking" style="margin-top:18px;padding:18px;border:1px solid #c9b58a;border-radius:12px">
@@ -330,6 +330,7 @@ I understand this is a booking request, not a confirmed reservation, and that fu
 <button type="button" class="btn" id="reserve">
 Send booking request
 </button>
+
 <p id="reserveStatus" role="status" aria-live="polite" class="small"></p>
 </div>
 
@@ -404,13 +405,23 @@ const iso = d => [
 ].join('-');
 
 function localToday() {
-  return iso(new Date());
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+
+  const part = type =>
+    parts.find(p => p.type === type).value;
+
+  return part('year')+'-'+part('month')+'-'+part('day');
 }
 
 function addDays(date, days) {
-  const d = new Date(date + 'T12:00:00');
-  d.setDate(d.getDate() + days);
-  return iso(d);
+  const d = new Date(date+'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate()+days);
+  return d.toISOString().slice(0,10);
 }
 
 function isHide(type) {
@@ -423,16 +434,43 @@ function islandHidesNotOpen() {
 
 $('year').textContent = new Date().getFullYear();
 
+let busy = false;
+let submitted = false;
+let version = 0;
+
+function updateButtons() {
+  const closed =
+    $('type').value === 'island_hides' &&
+    islandHidesNotOpen();
+
+  $('calculate').disabled = busy || submitted || closed;
+  $('reserve').disabled = busy || submitted || closed;
+}
+
+function resetAvailability() {
+  version++;
+
+  $('result').textContent =
+    'Select your dates to check availability and calculate a price.';
+
+  $('reserveStatus').textContent = '';
+  updateButtons();
+}
+
 function toggle() {
   const type = $('type').value;
   const hide = isHide(type);
-  const closed = type === 'island_hides' && islandHidesNotOpen();
   const today = localToday();
+  const closed =
+    type === 'island_hides' && islandHidesNotOpen();
 
   $('endbox').hidden = hide;
   $('sessionbox').hidden = !hide;
 
-  const night = $('session').querySelector('option[value="night"]');
+  const night = $('session').querySelector(
+    'option[value="night"]'
+  );
+
   night.hidden = type === 'island_hides';
   night.disabled = type === 'island_hides';
 
@@ -446,18 +484,17 @@ function toggle() {
       : today;
 
   $('start').min = minDate;
+
   $('start').max = type === 'island_hides'
     ? addDays(today,14)
     : '';
 
   $('startbox').hidden = closed;
   $('start').disabled = closed;
-  $('calculate').disabled = closed;
-  $('reserve').disabled = closed;
 
   $('dateNotice').hidden = !closed;
   $('dateNotice').textContent = closed
-    ? 'Island Wildlife Hides open in March 2027. Bookings will become available 14 days before your chosen session. Please return closer to the opening date.'
+    ? 'Island Wildlife Hides open in March 2027. Bookings become available 14 days before your chosen session.'
     : '';
 
   if (
@@ -469,20 +506,21 @@ function toggle() {
   }
 
   $('end').min = $('start').value || minDate;
-  $('result').textContent = closed
-    ? 'Island Wildlife Hides: £75 for one person or £100 for two. Exclusive daytime use of all three island hides.'
-    : 'Select your dates to calculate an estimated price.';
 
-  $('reserveStatus').textContent = '';
+  if (
+    $('end').value &&
+    $('end').value < $('end').min
+  ) {
+    $('end').value = '';
+  }
+
+  resetAvailability();
+
+  if (closed) {
+    $('result').textContent =
+      'Island Wildlife Hides: £75 for one person or £100 for two. Bookings are not open yet.';
+  }
 }
-
-$('type').addEventListener('change', toggle);
-
-$('start').addEventListener('change', () => {
-  $('end').min = $('start').value || localToday();
-});
-
-toggle();
 
 function calculate() {
   const type = $('type').value;
@@ -492,7 +530,9 @@ function calculate() {
   const today = localToday();
 
   if (type === 'island_hides' && islandHidesNotOpen()) {
-    throw new Error('Island Wildlife Hides bookings are not open yet.');
+    throw new Error(
+      'Island Wildlife Hides bookings are not open yet.'
+    );
   }
 
   if (!start || start < today) {
@@ -503,7 +543,9 @@ function calculate() {
     (type === 'island' || type === 'island_hides') &&
     start < '2027-03-01'
   ) {
-    throw new Error('Island bookings start from March 2027.');
+    throw new Error(
+      'Island bookings start from March 2027.'
+    );
   }
 
   if (
@@ -535,94 +577,236 @@ function calculate() {
   }
 
   const nights = Math.round(
-    (new Date(end+'T12:00:00') -
-     new Date(start+'T12:00:00')) / 86400000
+    (
+      new Date(end+'T12:00:00Z') -
+      new Date(start+'T12:00:00Z')
+    ) / 86400000
   );
 
   if (nights < 2 || nights > 60) {
-    throw new Error('Accommodation requires 2–60 nights.');
+    throw new Error(
+      'Accommodation requires 2–60 nights.'
+    );
   }
 
-  const arrivalDay = new Date(start+'T12:00:00').getDay();
+  const arrivalDay = new Date(
+    start+'T12:00:00Z'
+  ).getUTCDay();
 
-  if (type === 'cabin' && [0,6].includes(arrivalDay)) {
-    throw new Error('Cabin arrivals are Monday to Friday only.');
+  if (
+    type === 'cabin' &&
+    [0,6].includes(arrivalDay)
+  ) {
+    throw new Error(
+      'Cabin arrivals are Monday to Friday only.'
+    );
   }
 
   return {
     price: nights * (type === 'island' ? 250 : 300),
-    description: nights +
+    description:
+      nights +
       ' nights · Check-in 3pm · Check-out 10:30am'
   };
 }
 
-$('calculate').addEventListener('click', () => {
+function bookingDetails() {
+  const type = $('type').value;
+
+  return {
+    type,
+    guests: Number($('guests').value),
+    start_date: $('start').value,
+    end_date: isHide(type) ? '' : $('end').value,
+    session: isHide(type)
+      ? (type === 'island_hides' ? 'day' : $('session').value)
+      : ''
+  };
+}
+
+async function checkAvailability(expectedVersion) {
+  const details = bookingDetails();
+
+  const params = new URLSearchParams({
+    type: details.type,
+    start_date: details.start_date
+  });
+
+  if (isHide(details.type)) {
+    params.set('session',details.session);
+  } else {
+    params.set('end_date',details.end_date);
+  }
+
+  const response = await fetch(
+    '/api/availability?' + params.toString(),
+    {cache:'no-store'}
+  );
+
+  let data;
+
   try {
-    const result = calculate();
+    data = await response.json();
+  } catch {
+    throw new Error(
+      'Unable to read availability. Please try again.'
+    );
+  }
 
-    $('result').textContent =
-      result.description +
-      '. Total: £' + result.price.toFixed(2) +
-      '. Full payment is requested after approval. ' +
-      'Availability is subject to confirmation.';
+  if (expectedVersion !== version) {
+    throw new Error(
+      'Your dates changed. Please check again.'
+    );
+  }
 
+  if (!response.ok) {
+    throw new Error(
+      data.error || 'Unable to check availability.'
+    );
+  }
+
+  if (data.available !== true) {
+    throw new Error(
+      data.message || 'These dates are unavailable.'
+    );
+  }
+
+  return true;
+}
+
+async function showPrice() {
+  if (busy || submitted) return;
+
+  let estimate;
+
+  try {
+    estimate = calculate();
   } catch (error) {
     $('result').textContent = error.message;
+    return;
   }
+
+  busy = true;
+  const checkVersion = version;
+  updateButtons();
+
+  $('result').textContent =
+    'Checking live availability…';
+
+  try {
+    await checkAvailability(checkVersion);
+
+    $('result').textContent =
+      'Available to request · ' +
+      estimate.description +
+      '. Total: £' +
+      estimate.price.toFixed(2) +
+      '. Full payment is requested after approval. Availability may change before submission.';
+
+  } catch (error) {
+    if (checkVersion === version) {
+      $('result').textContent = error.message;
+    }
+  } finally {
+    busy = false;
+    updateButtons();
+  }
+}
+
+$('type').addEventListener('change',toggle);
+
+$('start').addEventListener('change',() => {
+  $('end').min = $('start').value || localToday();
+
+  if (
+    $('end').value &&
+    $('end').value < $('end').min
+  ) {
+    $('end').value = '';
+  }
+
+  resetAvailability();
 });
 
-$('reserve').addEventListener('click', async () => {
+['end','session','guests'].forEach(id => {
+  $(id).addEventListener('change',resetAvailability);
+});
+
+toggle();
+
+$('calculate').addEventListener('click',showPrice);
+
+$('reserve').addEventListener('click',async () => {
+  if (busy || submitted) return;
+
   const button = $('reserve');
-  const status = $('reserveStatus');
 
-  if (button.disabled) return;
-
-  const type = $('type').value;
   const name = $('guestName').value.trim();
   const email = $('guestEmail').value.trim();
   const phone = $('guestPhone').value.trim();
 
   if (!$('agreeTerms').checked) {
-    status.textContent =
+    $('reserveStatus').textContent =
       'Please accept the booking request terms.';
     return;
   }
 
-  if (!name || !email || !$('guestEmail').checkValidity()) {
-    status.textContent =
+  if (
+    !name ||
+    !email ||
+    !$('guestEmail').checkValidity()
+  ) {
+    $('reserveStatus').textContent =
       'Please enter your name and a valid email.';
     return;
   }
 
+  let estimate;
+
   try {
-    calculate();
+    estimate = calculate();
   } catch (error) {
-    status.textContent = error.message;
+    $('reserveStatus').textContent = error.message;
     return;
   }
 
-  button.disabled = true;
-  status.textContent = 'Sending your booking request…';
+  const details = bookingDetails();
+  const checkVersion = version;
+
+  busy = true;
+  updateButtons();
+
+  $('reserveStatus').textContent =
+    'Checking availability before submitting…';
 
   try {
-    const response = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        type,
-        guests: Number($('guests').value),
-        start_date: $('start').value,
-        end_date: isHide(type) ? '' : $('end').value,
-        session: isHide(type)
-          ? (type === 'island_hides' ? 'day' : $('session').value)
-          : '',
-        guest_name: name,
+    await checkAvailability(checkVersion);
+
+    $('reserveStatus').textContent =
+      'Sending your booking request…';
+
+    const response = await fetch('/api/checkout',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({
+        ...details,
+        guest_name:name,
         email,
         phone
       })
     });
 
-    const data = await response.json();
+    let data;
+
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(
+        'Unable to read the booking response. Please contact Welham Lake before trying again.'
+      );
+    }
 
     if (!response.ok || !data.success) {
       throw new Error(
@@ -630,16 +814,23 @@ $('reserve').addEventListener('click', async () => {
       );
     }
 
-    status.textContent =
-      'Your booking request has been sent for review. ' +
-      'This is not a confirmed reservation.';
+    submitted = true;
+
+    $('result').textContent =
+      estimate.description +
+      '. Total: £' +
+      estimate.price.toFixed(2);
+
+    $('reserveStatus').textContent =
+      'Your booking request has been sent for review. This is not a confirmed reservation.';
 
     button.textContent = 'Request sent';
 
   } catch (error) {
-    status.textContent =
-      'Unable to complete request: ' + error.message;
-    button.disabled = false;
+    $('reserveStatus').textContent = error.message;
+  } finally {
+    busy = false;
+    updateButtons();
   }
 });
 </script>
