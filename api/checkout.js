@@ -47,7 +47,27 @@ export default async function handler(req, res) {
       error: 'Please choose a future date.'
     });
   }
+  if (
+    ['island', 'island_hides'].includes(type) &&
+    start_date < '2027-03-01'
+  ) {
+    return res.status(400).json({
+      error: 'Island bookings start from 1 March 2027.'
+    });
+  }
 
+  if (type === 'island_hides') {
+    const daysAhead = Math.round(
+      (new Date(start_date + 'T12:00:00Z') -
+       new Date(today + 'T12:00:00Z')) / 86400000
+    );
+
+    if (daysAhead > 14) {
+      return res.status(400).json({
+        error: 'Island hides can only be booked 14 days ahead.'
+      });
+    }
+  }
   let totalPence;
   let departure = null;
   let hideSession = null;
