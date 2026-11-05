@@ -4,6 +4,14 @@ import { createHash } from 'node:crypto';
 
 const { Pool } = pg;
 
+const experienceNames = {
+  cabin: 'Luxury Cabin',
+  cabin_hide: 'Luxury Cabin Wildlife Hide',
+  island: 'Island Glamping',
+  hide: 'Separate Wildlife Hide',
+  island_hides: 'Island Wildlife Hides'
+};
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;',
@@ -12,6 +20,17 @@ function escapeHtml(value) {
     '"': '&quot;',
     "'": '&#39;'
   })[c]);
+}
+
+function formatDate(value) {
+  if (!value) return 'Not applicable';
+
+  return new Date(value).toLocaleDateString('en-GB', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 }
 
 export default async function handler(req, res) {
@@ -26,8 +45,10 @@ export default async function handler(req, res) {
 
   const token = req.query.token;
 
-  if (typeof token !== 'string' ||
-      !/^[a-f0-9]{64}$/.test(token)) {
+  if (
+    typeof token !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(token)
+  ) {
     return res.status(400).send('Invalid approval link.');
   }
 
@@ -36,7 +57,8 @@ export default async function handler(req, res) {
   }
 
   const hash = createHash('sha256')
-    .update(token).digest('hex');
+    .update(token)
+    .digest('hex');
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -67,89 +89,208 @@ export default async function handler(req, res) {
 
     const b = result.rows[0];
 
-    const date = value => value
-      ? new Date(value).toLocaleDateString('en-GB', {
-          timeZone: 'UTC',
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        })
-      : 'Not applicable';
+    const experience =
+      experienceNames[b.type] || b.type;
 
-    const page = `
-      <!doctype html>
-      <html lang="en">
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport"
-              content="width=device-width,initial-scale=1">
-        <title>Welham Booking Approval</title>
-        <style>
-          body {
-            background: #f7f4ed;
-            color: #172c24;
-            font: 16px Arial, sans-serif;
-            padding: 24px;
-          }
-          main {
-            max-width: 480px;
-            margin: 30px auto;
-            background: white;
-            padding: 28px;
-            border-radius: 12px;
-          }
-          h1 { font-size: 26px; }
-          p { line-height: 1.7; }
-        </style>
-      </head>
-      <body>
-        <main>
-          <h1>Welham Nature Retreat</h1>
-          <h2>Booking Review</h2>
-          <p><strong>Reference:</strong>
-            ${escapeHtml(b.request_reference)}</p>
-          <p><strong>Guest:</strong>
-            ${escapeHtml(b.guest_name)}</p>
-          <p><strong>Experience:</strong>
-            ${escapeHtml(b.type)}</p>
-          <p><strong>Arrival:</strong>
-            ${escapeHtml(date(b.start_date))}</p>
-          <p><strong>Departure:</strong>
-            ${escapeHtml(date(b.end_date))}</p>
-          <p><strong>Session:</strong>
-            ${escapeHtml(b.session || 'Not applicable')}</p>
-          <p><strong>Guests:</strong>
-            ${escapeHtml(b.guests)}</p>
-          <p><strong>Total:</strong>
-            £${(b.total_pence / 100).toFixed(2)}</p>
-          <p><strong>Status:</strong>
-            ${escapeHtml(b.status)}</p>
-          <hr>
-          <p>Review this booking and choose an action:</p>
+    const isHide = [
+      'hide',
+      'island_hides',
+      'cabin_hide'
+    ].includes(b.type);
 
-<form method="POST" action="/api/booking-decision">
-  <input type="hidden" name="token" value="${escapeHtml(token)}">
+    const total = (
+      Number(b.total_pence) / 100
+    ).toFixed(2);
 
-  <button type="submit" name="decision" value="approve">
-    Approve booking
-  </button>
+    const dateLabel = isHide
+      ? 'Session date'
+      : 'Arrival';
 
-  <button type="submit" name="decision" value="decline">
-    Decline booking
-  </button>
-</form>
+    const endLabel = isHide
+      ? ''
+      : `<p><strong>Departure:</strong>
+           ${escapeHtml(formatDate(b.end_date))}</p>`;
 
-<p>No payment instructions will be sent until
-the approval system is activated.</p>
-        </main>
-      </body>
-      </html>
+    const sessionNames = {
+      day: 'Daytime (07:00–17:00)',
+      night: 'Overnight (18:00–06:00)'
+    };
+
+    const session =
+      sessionNames[b.session] ||
+      b.session ||
+      'Not applicable';
+
+    const pending = b.status === 'pending';
+
+    const actions = pending ? `
+      <hr>
+      <p>Review this booking and choose an action:</p>
+
+      <form method="POST" action="/api/booking-decision">
+        <input
+          type="hidden"
+          name="token"
+          value="${escapeHtml(token)}"
+        >
+
+        <button
+          class="approve"
+          type="submit"
+          name="decision"
+          value="approve"
+        >
+          Approve booking
+        </button>
+
+        <button
+          class="decline"
+          type="submit"
+          name="decision"
+          value="decline"
+        >
+          Decline booking
+        </button>
+      </form>
+
+      <p class="note">
+        Approving a booking sends the guest their
+        bank transfer payment instructions.
+        The booking is not confirmed until
+        payment has been verified.
+      </p>
+    ` : `
+      <p class="note">
+        This booking has already been processed.
+        Current status: ${escapeHtml(b.status)}.
+      </p>
     `;
 
+    const page = `
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Welham Booking Approval</title>
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #f3f5f1;
+  color: #243328;
+  font: 16px Arial, sans-serif;
+  padding: 18px;
+}
+
+main {
+  max-width: 520px;
+  margin: 25px auto;
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+}
+
+h1 {
+  font-size: 25px;
+  color: #234735;
+}
+
+h2 {
+  font-size: 21px;
+}
+
+p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+button {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin: 12px 0;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: bold;
+  color: white;
+  cursor: pointer;
+}
+
+.approve {
+  background: #234735;
+}
+
+.decline {
+  background: #a13b35;
+}
+
+.note {
+  background: #eef3ed;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid #ddd;
+  margin: 22px 0;
+}
+</style>
+</head>
+
+<body>
+<main>
+  <h1>Welham Nature Retreat</h1>
+  <h2>Booking Review</h2>
+
+  <p><strong>Reference:</strong>
+    ${escapeHtml(b.request_reference)}</p>
+
+  <p><strong>Guest:</strong>
+    ${escapeHtml(b.guest_name)}</p>
+
+  <p><strong>Experience:</strong>
+    ${escapeHtml(experience)}</p>
+
+  <p><strong>${dateLabel}:</strong>
+    ${escapeHtml(formatDate(b.start_date))}</p>
+
+  ${endLabel}
+
+  <p><strong>Session:</strong>
+    ${escapeHtml(session)}</p>
+
+  <p><strong>Guests:</strong>
+    ${escapeHtml(b.guests)}</p>
+
+  <p><strong>Total:</strong> £${total}</p>
+
+  <p><strong>Status:</strong>
+    ${escapeHtml(b.status)}</p>
+
+  ${actions}
+</main>
+</body>
+</html>`;
+
     return res.status(200).send(page);
+
   } catch (error) {
-    console.error('Approval page error', error.code);
-    return res.status(500).send('Unable to load booking.');
+    console.error(
+      'Approval page error:',
+      error.code || error.message
+    );
+
+    return res.status(500).send(
+      'Unable to load booking.'
+    );
+
   } finally {
     await pool.end();
   }
