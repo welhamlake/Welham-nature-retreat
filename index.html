@@ -119,7 +119,7 @@ h1{font-size:3.1rem}
 <section id="stays" class="wrap">
 <div class="center">
 <span class="eyebrow">Escape the everyday</span>
-<h2>Four ways to experience Welham</h2>
+<h2>Five ways to experience Welham</h2>
 <p>From a private lakeside cabin to island glamping and exclusive wildlife photography hides, every visit is about privacy, tranquillity and reconnecting with nature.</p>
 </div>
 <div class="cards">
@@ -131,7 +131,7 @@ h1{font-size:3.1rem}
 <h3>Luxury Lakeside Cabin</h3>
 <p>Private wood-fired hot tub, BBQ, firepit, cosy double bedroom and exclusive use of the cabin's wildlife hide.</p>
 <p class="price">£300 per night · Sleeps 2</p>
-<a class="btn" href="#book">View booking options</a>
+<a class="btn" href="#book" data-book-type="cabin">View booking options</a>
 </div>
 </article>
 
@@ -153,7 +153,7 @@ h1{font-size:3.1rem}
 <h3>Separate Wildlife Hide</h3>
 <p>Exclusive photography sessions for one or two guests, independently of the accommodation.</p>
 <p class="price">£75 for one · £100 for two</p>
-<a class="btn" href="#book">Explore sessions</a>
+<a class="btn" href="#book" data-book-type="hide">Explore sessions</a>
 </div>
 </article>
 
@@ -164,7 +164,19 @@ h1{font-size:3.1rem}
 <h3>Island Wildlife Hides</h3>
 <p>Exclusive daytime use of all three island hides. Bookable up to 14 days in advance, subject to Island Glamping availability.</p>
 <p class="price">£75 for one · £100 for two</p>
-<a class="btn" href="#book">View island sessions</a>
+<a class="btn" href="#book" data-book-type="island_hides">View island sessions</a>
+</div>
+</article>
+
+<article class="card">
+<img src="images/1000060867.webp" alt="Wildlife at Welham Lake">
+<div class="inside">
+<span class="tag">Daytime sessions · Available now</span>
+<h3>Luxury Cabin Wildlife Hide</h3>
+<p>Enjoy the cabin's dedicated wildlife photography hide without booking accommodation. Exclusive daytime sessions for one or two guests, available only when the cabin is unoccupied. Cabin guests have priority and exclusive use throughout their stay, including checkout day.</p>
+<p class="price">£75 for one · £100 for two</p>
+<p class="small">Bookable up to 14 days in advance.</p>
+<a class="btn" href="#book" data-book-type="cabin_hide">Book this hide</a>
 </div>
 </article>
 
@@ -185,7 +197,7 @@ h1{font-size:3.1rem}
 <span>Two guests</span>
 <span>Minimum two nights</span>
 </div>
-<a class="btn" href="#book">Plan a cabin stay</a>
+<a class="btn" href="#book" data-book-type="cabin">Plan a cabin stay</a>
 </div>
 </div>
 </section>
@@ -199,7 +211,7 @@ h1{font-size:3.1rem}
 <p>Island Glamping includes exclusive use of all three island wildlife hides throughout your stay, including checkout day. The island hides cannot be booked separately while glamping guests have exclusive use.</p>
 <p><strong>£250 per night · Two-night minimum · Two guests.</strong></p>
 <p>Booking requests can be made for stays from 1 March 2027. The opening date remains subject to completion of the island facilities and confirmation by Welham Nature Retreat.</p>
-<a class="btn" href="#book">Request island availability</a>
+<a class="btn" href="#book" data-book-type="island">Request island availability</a>
 </div>
 <img src="images/1000034819.webp" alt="Evening colours over Welham Lake">
 </section>
@@ -211,12 +223,13 @@ h1{font-size:3.1rem}
 <span class="eyebrow">A front-row seat to the wild</span>
 <h2>Wildlife worth waiting for.</h2>
 <p class="muted">From kingfishers to badgers and owls, Welham Lake offers memorable wildlife photography opportunities. Sightings vary naturally and cannot be guaranteed.</p>
-<p class="muted">Our separate wildlife hide offers daytime and overnight sessions. The three island wildlife hides are available together for exclusive daytime sessions from March 2027, when not reserved for glamping guests.</p>
+<p class="muted">Choose the separate wildlife hide for daytime or overnight sessions. The Luxury Cabin Wildlife Hide offers daytime-only sessions when the cabin is unoccupied. The three island wildlife hides are available together for exclusive daytime sessions from March 2027, when not reserved for glamping guests.</p>
 <div class="facts">
 <span>Day: 7am–5pm</span>
 <span>Separate hide night: 6pm–6am</span>
 <span>Exclusive use</span>
 <span>Up to 2 guests</span>
+<span>Cabin hide: book 14 days ahead</span>
 </div>
 <p class="price">£75 for one · £100 for two</p>
 <a class="btn" href="#book">Explore hide sessions</a>
@@ -264,6 +277,7 @@ This is a booking request, not a confirmed reservation. Requests are held provis
 <option value="island">Island Bell Tent — March 2027</option>
 <option value="hide">Separate Wildlife Hide</option>
 <option value="island_hides">Island Wildlife Hides — March 2027</option>
+<option value="cabin_hide">Luxury Cabin Wildlife Hide</option>
 </select>
 </div>
 
@@ -334,7 +348,7 @@ Send booking request
 <p id="reserveStatus" role="status" aria-live="polite" class="small"></p>
 </div>
 
-<p class="small muted">Accommodation requires a minimum two-night stay. Cabin arrivals are Monday–Friday. Check-in is 3pm and check-out is 10:30am. Island hide sessions are daytime only and can be requested up to 14 days ahead, from March 2027.</p>
+<p class="small muted">Accommodation requires a minimum two-night stay. Cabin arrivals are Monday–Friday. Check-in is 3pm and check-out is 10:30am. Island and cabin wildlife hide-only sessions are daytime only and can be requested up to 14 days ahead. Island hide sessions begin from March 2027.</p>
 <p class="small"><strong>Payment terms:</strong> Full payment is requested by bank transfer after manual approval and is due within 24 hours. Bookings are confirmed only after payment verification. Cancellation terms will be provided for review before payment.</p>
 </div>
 </div>
@@ -353,7 +367,12 @@ Send booking request
 
 <details>
 <summary>Does accommodation include wildlife hides?</summary>
-<p>Yes. The luxury cabin includes its dedicated wildlife hide. Island Glamping includes exclusive use of all three island wildlife hides throughout the stay, including checkout day. The separate wildlife hide can be booked independently.</p>
+<p>Yes. The luxury cabin includes its dedicated wildlife hide throughout the stay, including checkout day. Island Glamping includes exclusive use of all three island wildlife hides throughout the stay, including checkout day. The separate wildlife hide can be booked independently.</p>
+</details>
+
+<details>
+<summary>Can I book the cabin wildlife hide without staying in the cabin?</summary>
+<p>Yes. The Luxury Cabin Wildlife Hide is available for exclusive daytime photography sessions from 7am to 5pm, for £75 for one person or £100 for two. Requests can be made up to 14 days ahead, provided no cabin stay or other booking reserves the hide. The cabin's checkout day is also unavailable for hide-only bookings.</p>
 </details>
 
 <details>
@@ -425,7 +444,11 @@ function addDays(date, days) {
 }
 
 function isHide(type) {
-  return type === 'hide' || type === 'island_hides';
+  return ['hide','island_hides','cabin_hide'].includes(type);
+}
+
+function isDayOnlyHide(type) {
+  return type === 'island_hides' || type === 'cabin_hide';
 }
 
 function islandHidesNotOpen() {
@@ -460,7 +483,9 @@ function resetAvailability() {
 function toggle() {
   const type = $('type').value;
   const hide = isHide(type);
+  const dayOnly = isDayOnlyHide(type);
   const today = localToday();
+
   const closed =
     type === 'island_hides' && islandHidesNotOpen();
 
@@ -471,10 +496,10 @@ function toggle() {
     'option[value="night"]'
   );
 
-  night.hidden = type === 'island_hides';
-  night.disabled = type === 'island_hides';
+  night.hidden = dayOnly;
+  night.disabled = dayOnly;
 
-  if (type === 'island_hides') {
+  if (dayOnly) {
     $('session').value = 'day';
   }
 
@@ -485,7 +510,7 @@ function toggle() {
 
   $('start').min = minDate;
 
-  $('start').max = type === 'island_hides'
+  $('start').max = dayOnly
     ? addDays(today,14)
     : '';
 
@@ -549,26 +574,36 @@ function calculate() {
   }
 
   if (
-    type === 'island_hides' &&
+    isDayOnlyHide(type) &&
     start > addDays(today,14)
   ) {
     throw new Error(
-      'Island hides can only be booked up to 14 days ahead.'
+      'Wildlife hide sessions can only be booked up to 14 days ahead.'
     );
   }
 
   if (isHide(type)) {
-    const session = type === 'island_hides'
+    const session = isDayOnlyHide(type)
       ? 'day'
       : $('session').value;
 
+    let description;
+
+    if (type === 'island_hides') {
+      description =
+        'Exclusive Island Wildlife Hides · Daytime 7am–5pm';
+    } else if (type === 'cabin_hide') {
+      description =
+        'Luxury Cabin Wildlife Hide · Daytime 7am–5pm';
+    } else {
+      description = session === 'day'
+        ? 'Separate Wildlife Hide · Daytime 7am–5pm'
+        : 'Separate Wildlife Hide · Overnight 6pm–6am next day';
+    }
+
     return {
       price: guests === 1 ? 75 : 100,
-      description: type === 'island_hides'
-        ? 'Exclusive Island Wildlife Hides · Daytime 7am–5pm'
-        : session === 'day'
-          ? 'Separate Wildlife Hide · Daytime 7am–5pm'
-          : 'Separate Wildlife Hide · Overnight 6pm–6am next day'
+      description
     };
   }
 
@@ -619,7 +654,7 @@ function bookingDetails() {
     start_date: $('start').value,
     end_date: isHide(type) ? '' : $('end').value,
     session: isHide(type)
-      ? (type === 'island_hides' ? 'day' : $('session').value)
+      ? (isDayOnlyHide(type) ? 'day' : $('session').value)
       : ''
   };
 }
@@ -714,6 +749,13 @@ async function showPrice() {
 }
 
 $('type').addEventListener('change',toggle);
+
+document.querySelectorAll('[data-book-type]').forEach(link => {
+  link.addEventListener('click', () => {
+    $('type').value = link.dataset.bookType;
+    toggle();
+  });
+});
 
 $('start').addEventListener('change',() => {
   $('end').min = $('start').value || localToday();
