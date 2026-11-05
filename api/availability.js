@@ -15,15 +15,27 @@ const BLOCK_NAMES = {
 };
 
 function validDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
   const d = new Date(value + 'T12:00:00Z');
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+
+  return !Number.isNaN(d.getTime()) &&
+    d.toISOString().slice(0, 10) === value;
 }
 
 function addDays(date, days) {
   const d = new Date(date + 'T12:00:00Z');
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(start, end) {
+  return Math.round((
+    new Date(end + 'T12:00:00Z') -
+    new Date(start + 'T12:00:00Z')
+  ) / 86400000);
 }
 
 function ukToday() {
@@ -35,17 +47,21 @@ function ukToday() {
   }).formatToParts(new Date());
 
   const get = type => parts.find(p => p.type === type)?.value;
+
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 function sendError(res, status, message) {
-  return res.status(status).json({ available: false, error: message });
+  return res.status(status).json({
+    available: false,
+    error: message
+  });
 }
 
 function unavailable(res) {
   return res.status(200).json({
     available: false,
-    message: 'These dates are unavailable.'
+    message: 'One or more selected sessions are unavailable.'
   });
 }
 
@@ -54,7 +70,12 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 }
 
 function bookingRange(type, start, end) {
-  if (['hide', 'island_hides', 'cabin_hide'].includes(type)) {
+  if (type === 'hide') {
+    const finalDate = end || start;
+    return [start, addDays(finalDate, 1)];
+  }
+
+  if (['island_hides', 'cabin_hide'].includes(type)) {
     return [start, addDays(start, 1)];
   }
 
@@ -79,21 +100,43 @@ function bookingConflict(request, existing) {
     cabinTypes.includes(request.type) &&
     cabinTypes.includes(existing.type);
 
-  if (!sameIslandGroup && !sameCabinGroup &&
-      request.type !== existing.type) {
+  if (
+    !sameIslandGroup &&
+    !sameCabinGroup &&
+    request.type !== existing.type
+  ) {
     return false;
   }
 
   if (request.type === 'hide' && existing.type === 'hide') {
-    return request.start === existing.start && (
+    const a = bookingRange(
+      request.type, request.start, request.end
+    );
+
+    const b = bookingRange(
+      existing.type, existing.start, existing.end
+    );
+
+    if (!a || !b || !overlaps(a[0], a[1], b[0], b[1])) {
+      return false;
+    }
+
+    return (
       !existing.session ||
       existing.session === 'all' ||
+      !request.session ||
+      request.session === 'all' ||
       request.session === existing.session
     );
   }
 
-  const a = bookingRange(request.type, request.start, request.end);
-  const b = bookingRange(existing.type, existing.start, existing.end);
+  const a = bookingRange(
+    request.type, request.start, request.end
+  );
+
+  const b = bookingRange(
+    existing.type, existing.start, existing.end
+  );
 
   return !!a && !!b && overlaps(a[0], a[1], b[0], b[1]);
 }
@@ -108,56 +151,114 @@ export default async function handler(req, res) {
   const { type, start_date, end_date, session } = req.query || {};
 
   if (!TYPES.includes(type) || !validDate(start_date)) {
-    return sendError(res, 400, 'Please choose a valid experience and date.');
+    return sendError(
+      res, 400,
+      'Please choose a valid experience and date.'
+    );
   }
 
   const today = ukToday();
 
   if (start_date < today) {
-    return sendError(res, 400, 'Please choose a current or future date.');
+    return sendError(
+      res, 400,
+      'Please choose a current or future date.'
+    );
   }
 
-  if (['island', 'island_hides'].includes(type) &&
-      start_date < '2027-03-01') {
-    return sendError(res, 400, 'Island bookings start from March 2027.');
+  if (
+    ['island', 'island_hides'].includes(type) &&
+    start_date < '2027-03-01'
+  ) {
+    return sendError(
+      res, 400,
+      'Island bookings start from March 2027.'
+    );
   }
 
-  if (['island_hides', 'cabin_hide'].includes(type) &&
-      start_date > addDays(today, 14)) {
-    return sendError(res, 400, 'This wildlife hide can only be booked up to 14 days ahead.');
+  if (
+    ['island_hides', 'cabin_hide'].includes(type) &&
+    start_date > addDays(today, 14)
+  ) {
+    return sendError(
+      res, 400,
+      'This wildlife hide can only be booked up to 14 days ahead.'
+    );
   }
 
-  const isHide = ['hide', 'island_hides', 'cabin_hide'].includes(type);
+  const isHide = [
+    'hide', 'island_hides', 'cabin_hide'
+  ].includes(type);
 
   let departure = null;
   let hideSession = null;
+  let sessionCount = 1;
 
   if (isHide) {
-    if ((['island_hides', 'cabin_hide'].includes(type) && session !== 'day') ||
-        (type === 'hide' && !['day', 'night'].includes(session))) {
-      return sendError(res, 400, 'Please select a valid hide session.');
+    if (
+      (['island_hides', 'cabin_hide'].includes(type) &&
+        session !== 'day') ||
+      (type === 'hide' &&
+        !['day', 'night'].includes(session))
+    ) {
+      return sendError(
+        res, 400,
+        'Please select a valid hide session.'
+      );
     }
 
     hideSession = session;
+
+    if (type === 'hide') {
+      if (end_date !== undefined && end_date !== '') {
+        if (!validDate(end_date)) {
+          return sendError(
+            res, 400,
+            'Please select a valid final session date.'
+          );
+        }
+
+        sessionCount = daysBetween(start_date, end_date) + 1;
+
+        if (sessionCount < 1 || sessionCount > 7) {
+          return sendError(
+            res, 400,
+            'Choose between 1 and 7 consecutive sessions.'
+          );
+        }
+
+        departure = end_date;
+      } else {
+        departure = start_date;
+      }
+    }
   } else {
     if (!validDate(end_date)) {
-      return sendError(res, 400, 'Please select a departure date.');
+      return sendError(
+        res, 400,
+        'Please select a departure date.'
+      );
     }
 
-    const nights = Math.round((
-      new Date(end_date + 'T12:00:00Z') -
-      new Date(start_date + 'T12:00:00Z')
-    ) / 86400000);
+    const nights = daysBetween(start_date, end_date);
 
     if (nights < 2 || nights > 60) {
-      return sendError(res, 400, 'Accommodation requires between 2 and 60 nights.');
+      return sendError(
+        res, 400,
+        'Accommodation requires between 2 and 60 nights.'
+      );
     }
 
     if (type === 'cabin') {
-      const day = new Date(start_date + 'T12:00:00Z').getUTCDay();
+      const day = new Date(
+        start_date + 'T12:00:00Z'
+      ).getUTCDay();
 
       if (day === 0 || day === 6) {
-        return sendError(res, 400, 'Cabin arrivals are Monday to Friday.');
+        return sendError(
+          res, 400,
+          'Cabin arrivals are Monday to Friday.'
+        );
       }
     }
 
@@ -165,7 +266,10 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.DATABASE_URL) {
-    return sendError(res, 503, 'Availability service is not configured.');
+    return sendError(
+      res, 503,
+      'Availability service is not configured.'
+    );
   }
 
   const request = {
@@ -175,9 +279,13 @@ export default async function handler(req, res) {
     session: hideSession
   };
 
-  const range = bookingRange(type, start_date, departure);
+  const range = bookingRange(
+    type, start_date, departure
+  );
 
-  const relatedTypes = ['island', 'island_hides'].includes(type)
+  const relatedTypes = [
+    'island', 'island_hides'
+  ].includes(type)
     ? ['island', 'island_hides']
     : ['cabin', 'cabin_hide'].includes(type)
       ? ['cabin', 'cabin_hide']
@@ -209,16 +317,29 @@ export default async function handler(req, res) {
     for (const block of blocks.rows) {
       const blockEnd = addDays(block.end_date, 1);
 
-      if (!overlaps(range[0], range[1], block.start_date, blockEnd)) {
+      if (!overlaps(
+        range[0], range[1],
+        block.start_date, blockEnd
+      )) {
         continue;
       }
 
-      const sharedCabin = ['cabin', 'cabin_hide'].includes(type);
-      const sharedIsland = ['island', 'island_hides'].includes(type);
+      const sharedCabin = [
+        'cabin', 'cabin_hide'
+      ].includes(type);
 
-      if (sharedCabin || sharedIsland || !isHide ||
-          !block.session || block.session === 'all' ||
-          block.session === hideSession) {
+      const sharedIsland = [
+        'island', 'island_hides'
+      ].includes(type);
+
+      if (
+        sharedCabin ||
+        sharedIsland ||
+        !isHide ||
+        !block.session ||
+        block.session === 'all' ||
+        block.session === hideSession
+      ) {
         return unavailable(res);
       }
     }
@@ -237,9 +358,11 @@ export default async function handler(req, res) {
     const now = Date.now();
 
     for (const booking of bookings.rows) {
-      if (booking.status === 'pending' &&
-          booking.expires_at &&
-          new Date(booking.expires_at).getTime() <= now) {
+      if (
+        booking.status === 'pending' &&
+        booking.expires_at &&
+        new Date(booking.expires_at).getTime() <= now
+      ) {
         continue;
       }
 
@@ -257,11 +380,17 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       available: true,
-      message: 'These dates are available to request.'
+      message: sessionCount === 1
+        ? 'This session is available to request.'
+        : `All ${sessionCount} consecutive sessions are available to request.`,
+      sessions: sessionCount
     });
 
   } catch (err) {
-    console.error('Availability check failed:', err.code || err.message);
+    console.error(
+      'Availability check failed:',
+      err.code || err.message
+    );
 
     return sendError(
       res, 500,
