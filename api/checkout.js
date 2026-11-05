@@ -24,13 +24,19 @@ const BLOCK_NAMES = {
 };
 
 function validDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
   const d = new Date(value + 'T12:00:00Z');
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+
+  return !Number.isNaN(d.getTime()) &&
+    d.toISOString().slice(0, 10) === value;
 }
 
 function dateOnly(value) {
   if (!value) return '';
+
   return value instanceof Date
     ? value.toISOString().slice(0, 10)
     : String(value).slice(0, 10);
@@ -42,6 +48,13 @@ function addDays(value, days) {
   return d.toISOString().slice(0, 10);
 }
 
+function daysBetween(start, end) {
+  return Math.round((
+    new Date(end + 'T12:00:00Z') -
+    new Date(start + 'T12:00:00Z')
+  ) / 86400000);
+}
+
 function ukToday() {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
@@ -49,7 +62,9 @@ function ukToday() {
     month: '2-digit',
     day: '2-digit'
   }).formatToParts(new Date());
+
   const get = type => parts.find(p => p.type === type)?.value;
+
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
@@ -70,8 +85,18 @@ function isHide(type) {
 }
 
 function bookingRange(type, start, end) {
-  if (isHide(type)) {
-    return { start, end: addDays(start, 1) };
+  if (type === 'hide') {
+    return {
+      start,
+      end: addDays(end || start, 1)
+    };
+  }
+
+  if (['island_hides', 'cabin_hide'].includes(type)) {
+    return {
+      start,
+      end: addDays(start, 1)
+    };
   }
 
   return {
@@ -105,7 +130,9 @@ function bookingConflict(request, existing) {
 
   if (!overlaps(request.range, existingRange)) return false;
 
-  if (isIsland(request.type) || isCabin(request.type)) return true;
+  if (isIsland(request.type) || isCabin(request.type)) {
+    return true;
+  }
 
   const existingSession = String(existing.session || '');
 
@@ -129,7 +156,9 @@ function blockConflict(request, block) {
     end: addDays(end, 1)
   })) return false;
 
-  if (isIsland(request.type) || isCabin(request.type)) return true;
+  if (isIsland(request.type) || isCabin(request.type)) {
+    return true;
+  }
 
   const blockSession = String(block.session || 'all');
 
@@ -140,7 +169,8 @@ function blockConflict(request, block) {
 async function sendOwnerEmail(details) {
   const {
     token, reference, name, guestEmail, guestPhone,
-    type, count, startDate, departure, session, totalPence
+    type, count, startDate, departure, session,
+    sessionCount, totalPence
   } = details;
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -166,9 +196,10 @@ async function sendOwnerEmail(details) {
         `Phone: ${guestPhone || 'Not supplied'}`,
         `Experience: ${EXPERIENCE_NAMES[type]}`,
         `Guests: ${count}`,
-        `Arrival / Session date: ${startDate}`,
-        `Departure: ${departure || 'Not applicable'}`,
+        `First date: ${startDate}`,
+        `Final session date / Departure: ${departure || startDate}`,
         `Session: ${session || 'Not applicable'}`,
+        `Number of hide sessions: ${isHide(type) ? sessionCount : 'Not applicable'}`,
         `Total: £${(totalPence / 100).toFixed(2)}`,
         '',
         'The booking is held pending approval.',
@@ -207,9 +238,18 @@ export default async function handler(req, res) {
     session, guest_name, email, phone
   } = body;
 
-  const name = typeof guest_name === 'string' ? guest_name.trim() : '';
-  const guestEmail = typeof email === 'string' ? email.trim() : '';
-  const guestPhone = typeof phone === 'string' ? phone.trim() : '';
+  const name = typeof guest_name === 'string'
+    ? guest_name.trim()
+    : '';
+
+  const guestEmail = typeof email === 'string'
+    ? email.trim()
+    : '';
+
+  const guestPhone = typeof phone === 'string'
+    ? phone.trim()
+    : '';
+
   const count = Number(guests);
 
   if (
@@ -222,51 +262,95 @@ export default async function handler(req, res) {
     guestPhone.length > 60 ||
     !validDate(start_date)
   ) {
-    return responseError(res, 400, 'Please check your booking details.');
+    return responseError(
+      res, 400,
+      'Please check your booking details.'
+    );
   }
 
   const today = ukToday();
 
   if (start_date < today) {
-    return responseError(res, 400, 'Please choose a current or future date.');
+    return responseError(
+      res, 400,
+      'Please choose a current or future date.'
+    );
   }
 
   if (isIsland(type) && start_date < '2027-03-01') {
-    return responseError(res, 400, 'Island bookings start from 1 March 2027.');
+    return responseError(
+      res, 400,
+      'Island bookings start from 1 March 2027.'
+    );
   }
 
   if (
     ['island_hides', 'cabin_hide'].includes(type) &&
     start_date > addDays(today, 14)
   ) {
-    return responseError(res, 400,
-      'This wildlife hide can only be booked up to 14 days ahead.');
+    return responseError(
+      res, 400,
+      'This wildlife hide can only be booked up to 14 days ahead.'
+    );
   }
 
   let totalPence;
   let departure = null;
   let hideSession = null;
+  let sessionCount = 1;
 
   if (isHide(type)) {
     if (
-      (['island_hides', 'cabin_hide'].includes(type) && session !== 'day') ||
-      (type === 'hide' && !['day', 'night'].includes(session))
+      (['island_hides', 'cabin_hide'].includes(type) &&
+        session !== 'day') ||
+      (type === 'hide' &&
+        !['day', 'night'].includes(session))
     ) {
-      return responseError(res, 400,
-        'Please select an available hide session.');
+      return responseError(
+        res, 400,
+        'Please select an available hide session.'
+      );
     }
 
     hideSession = session;
-    totalPence = count === 1 ? 7500 : 10000;
-  } else {
-    if (!validDate(end_date)) {
-      return responseError(res, 400, 'Please choose a departure date.');
+
+    if (type === 'hide') {
+      if (end_date !== undefined &&
+          end_date !== null &&
+          end_date !== '') {
+        if (!validDate(end_date)) {
+          return responseError(
+            res, 400,
+            'Please choose a valid final session date.'
+          );
+        }
+
+        sessionCount = daysBetween(start_date, end_date) + 1;
+
+        if (sessionCount < 1 || sessionCount > 7) {
+          return responseError(
+            res, 400,
+            'Choose between 1 and 7 consecutive sessions.'
+          );
+        }
+
+        departure = end_date;
+      } else {
+        departure = start_date;
+      }
     }
 
-    const nights = Math.round((
-      new Date(end_date + 'T12:00:00Z') -
-      new Date(start_date + 'T12:00:00Z')
-    ) / 86400000);
+    totalPence = (count === 1 ? 7500 : 10000) * sessionCount;
+
+  } else {
+    if (!validDate(end_date)) {
+      return responseError(
+        res, 400,
+        'Please choose a departure date.'
+      );
+    }
+
+    const nights = daysBetween(start_date, end_date);
 
     const arrivalDay = new Date(
       start_date + 'T12:00:00Z'
@@ -277,29 +361,44 @@ export default async function handler(req, res) {
       nights > 60 ||
       (type === 'cabin' && [0, 6].includes(arrivalDay))
     ) {
-      return responseError(res, 400,
+      return responseError(
+        res, 400,
         type === 'cabin'
           ? 'Cabin stays require 2–60 nights and a Monday–Friday arrival.'
-          : 'Island Glamping stays require 2–60 nights.');
+          : 'Island Glamping stays require 2–60 nights.'
+      );
     }
 
     departure = end_date;
-    totalPence = nights * (type === 'island' ? 25000 : 30000);
+
+    totalPence = nights *
+      (type === 'island' ? 25000 : 30000);
   }
 
   if (!process.env.DATABASE_URL || !process.env.RESEND_API_KEY) {
-    return responseError(res, 503, 'Booking service is not configured.');
+    return responseError(
+      res, 503,
+      'Booking service is not configured.'
+    );
   }
 
   const request = {
     type,
     session: hideSession,
-    range: bookingRange(type, start_date, departure || start_date)
+    range: bookingRange(
+      type,
+      start_date,
+      departure || start_date
+    )
   };
 
   const token = randomBytes(32).toString('hex');
-  const tokenHash = createHash('sha256').update(token).digest('hex');
-  const reference = 'WEL-' + randomBytes(6).toString('hex').toUpperCase();
+  const tokenHash = createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  const reference = 'WEL-' +
+    randomBytes(6).toString('hex').toUpperCase();
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -320,8 +419,10 @@ export default async function handler(req, res) {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    // Serialise checkout requests to prevent simultaneous reservations.
-    await client.query('SELECT pg_advisory_xact_lock(918273645)');
+    // Prevent simultaneous checkout requests creating double bookings.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(918273645)'
+    );
 
     await client.query(`
       UPDATE public.bookings
@@ -336,12 +437,22 @@ export default async function handler(req, res) {
       FROM public.blocked_dates
       WHERE end_date >= $1::date
         AND start_date < $2::date
-    `, [request.range.start, request.range.end]);
+    `, [
+      request.range.start,
+      request.range.end
+    ]);
 
-    if (blockResult.rows.some(block => blockConflict(request, block))) {
+    if (
+      blockResult.rows.some(
+        block => blockConflict(request, block)
+      )
+    ) {
       await client.query('ROLLBACK');
-      return responseError(res, 409,
-        'These dates or this session are blocked. Please choose another.');
+
+      return responseError(
+        res, 409,
+        'One or more selected sessions are blocked. Please choose another.'
+      );
     }
 
     const bookingResult = await client.query(`
@@ -349,8 +460,11 @@ export default async function handler(req, res) {
              session, status, expires_at
       FROM public.bookings
       WHERE status = ANY($1::text[])
-        AND start_date <= $2::date
-        AND (end_date IS NULL OR end_date >= $3::date)
+        AND start_date < $2::date
+        AND (
+          end_date IS NULL OR
+          end_date >= $3::date
+        )
     `, [
       ACTIVE,
       request.range.end,
@@ -364,15 +478,20 @@ export default async function handler(req, res) {
         booking.status === 'pending' &&
         booking.expires_at &&
         new Date(booking.expires_at).getTime() <= now
-      ) return false;
+      ) {
+        return false;
+      }
 
       return bookingConflict(request, booking);
     });
 
     if (conflict) {
       await client.query('ROLLBACK');
-      return responseError(res, 409,
-        'These dates are already reserved. Please choose another.');
+
+      return responseError(
+        res, 409,
+        'One or more selected sessions are already reserved.'
+      );
     }
 
     await client.query(`
@@ -409,19 +528,29 @@ export default async function handler(req, res) {
       await client.query('ROLLBACK').catch(() => {});
     }
 
-    console.error('Booking checkout error:', error.code || error.message);
+    console.error(
+      'Booking checkout error:',
+      error.code || error.message
+    );
 
     if (saved) {
-      return responseError(res, 502,
-        'Booking may have been saved. Please contact Welham Lake before trying again.');
+      return responseError(
+        res, 502,
+        'Booking may have been saved. Contact Welham Lake before trying again.'
+      );
     }
 
     if (['23505', '23P01'].includes(error.code)) {
-      return responseError(res, 409,
-        'These dates are already reserved. Please choose another.');
+      return responseError(
+        res, 409,
+        'These dates are already reserved.'
+      );
     }
 
-    return responseError(res, 500, 'Unable to process booking request.');
+    return responseError(
+      res, 500,
+      'Unable to process booking request.'
+    );
 
   } finally {
     if (client) client.release();
@@ -439,12 +568,15 @@ export default async function handler(req, res) {
       startDate: start_date,
       departure,
       session: hideSession,
+      sessionCount,
       totalPence
     });
 
     if (!sent) {
-      return responseError(res, 502,
-        'Booking saved, but notification failed. Contact Welham Lake before submitting again.');
+      return responseError(
+        res, 502,
+        'Booking saved, but notification failed. Contact Welham Lake before submitting again.'
+      );
     }
 
     await pool.query(`
@@ -452,7 +584,10 @@ export default async function handler(req, res) {
       SET email_owner_sent_at = NOW()
       WHERE request_reference = $1
     `, [reference]).catch(error => {
-      console.error('Email tracking error:', error.code || error.message);
+      console.error(
+        'Email tracking error:',
+        error.code || error.message
+      );
     });
 
     return res.status(200).json({
@@ -462,10 +597,15 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Booking email error:', error.code || error.message);
+    console.error(
+      'Booking email error:',
+      error.code || error.message
+    );
 
-    return responseError(res, 502,
-      'Booking saved, but notification failed. Contact Welham Lake before submitting again.');
+    return responseError(
+      res, 502,
+      'Booking saved, but notification failed. Contact Welham Lake before submitting again.'
+    );
 
   } finally {
     await pool.end();
