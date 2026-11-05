@@ -6,13 +6,20 @@ const { Pool } = pg;
 
 const experiences = [
   'Luxury Cabin',
+  'Luxury Cabin Wildlife Hide',
   'Island Glamping',
   'Separate Wildlife Hide',
   'Island Wildlife Hides'
 ];
 
 const hideExperiences = [
+  'Luxury Cabin Wildlife Hide',
   'Separate Wildlife Hide',
+  'Island Wildlife Hides'
+];
+
+const dayOnlyExperiences = [
+  'Luxury Cabin Wildlife Hide',
   'Island Wildlife Hides'
 ];
 
@@ -133,16 +140,33 @@ function form(message = '') {
       const session = document.getElementById('session');
 
       function updateSession() {
-        const isHide = [
-          'Separate Wildlife Hide',
-          'Island Wildlife Hides'
-        ].includes(experience.value);
+        const selected = experience.value;
+
+        const isHide = ${JSON.stringify(hideExperiences)}.includes(selected);
+        const dayOnly = ${JSON.stringify(dayOnlyExperiences)}.includes(selected);
 
         session.disabled = !isHide;
+        session.replaceChildren();
 
-        if (!isHide) {
-          session.value = 'all';
+        const options = dayOnly
+          ? [
+              ['all', 'Whole day / All sessions'],
+              ['day', 'Daytime only (7am–5pm)']
+            ]
+          : [
+              ['all', 'Whole day / All sessions'],
+              ['day', 'Daytime only (7am–5pm)'],
+              ['night', 'Overnight only (6pm–6am)']
+            ];
+
+        for (const [value, label] of options) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          session.appendChild(option);
         }
+
+        session.value = 'all';
       }
 
       experience.addEventListener('change', updateSession);
@@ -196,7 +220,8 @@ export default async function handler(req, res) {
     end_date < start_date ||
     (Date.parse(end_date) - Date.parse(start_date)) / 86400000 > 366 ||
     !reasons.includes(reason) ||
-    !['all', 'day', 'night'].includes(session)
+    !['all', 'day', 'night'].includes(session) ||
+    (dayOnlyExperiences.includes(experience) && session === 'night')
   ) {
     return res.status(400).send(
       form('<p class="message error">Invalid booking block details.</p>')
