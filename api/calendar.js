@@ -104,7 +104,7 @@ button,.action{background:#234735;color:white;border:0;font-weight:bold;cursor:p
 .removeForm input,.manageForm input{max-width:360px}
 .manageForm{padding-top:10px;border-top:1px solid #ddd}
 .manageForm button{margin:5px 6px 5px 0}
-.release{background:#b93838}
+.release,.cancel{background:#b93838}
 .message{padding:15px;border-radius:8px;background:#e7f2e9}
 .error{background:#fff0ed}
 small{color:#627064}
@@ -149,7 +149,9 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
   if (req.method === 'GET') return res.status(200).send(login());
-  if (req.method !== 'POST') return res.status(405).send(page('Method not allowed'));
+  if (req.method !== 'POST') {
+    return res.status(405).send(page('Method not allowed'));
+  }
 
   const body = typeof req.body === 'string'
     ? Object.fromEntries(new URLSearchParams(req.body))
@@ -283,7 +285,8 @@ export default async function handler(req, res) {
   <div class="details" id="details"></div>
 </div>
 <p><small>Owner-only calendar. Always verify a bank transfer before marking a booking paid.
-Release unpaid approved bookings only after the payment deadline and a manual bank check.</small></p>
+Release unpaid approved bookings only after the payment deadline and a manual bank check.
+Cancel Booking immediately releases an active unpaid booking after confirmation.</small></p>
 <script id="bookingData" type="application/json">${safeJson(bookings)}</script>
 <script id="blockData" type="application/json">${safeJson(blocks)}</script>
 <script id="experienceData" type="application/json">${safeJson(experiences)}</script>
@@ -412,6 +415,10 @@ function addOwnerForm(parent, b, action, buttonText, warning) {
 
   if (action === 'release_booking') {
     button.className = 'release';
+  }
+
+  if (action === 'cancel_booking') {
+    button.className = 'cancel';
   }
 
   button.textContent = buttonText;
@@ -544,6 +551,18 @@ function showDetails(date) {
         addText(div, 'p',
           'Release Booking becomes available after the payment deadline.');
       }
+    }
+
+    if (
+      ['pending', 'approved', 'confirmed'].includes(
+        String(b.status).toLowerCase()
+      ) &&
+      String(b.payment).toLowerCase() !== 'paid'
+    ) {
+      addOwnerForm(
+        div, b, 'cancel_booking', 'Cancel Booking',
+        'WARNING: This immediately cancels the booking and releases its dates. Are you sure you want to cancel'
+      );
     }
 
     details.appendChild(div);
