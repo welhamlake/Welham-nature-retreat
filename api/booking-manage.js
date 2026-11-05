@@ -72,7 +72,7 @@ export default async function handler(req, res) {
   const reference = String(body.request_reference || '');
 
   if (
-    !['mark_paid', 'release_booking'].includes(action) ||
+    !['mark_paid', 'release_booking', 'cancel_booking'].includes(action) ||
     !/^[A-Za-z0-9_-]{1,100}$/.test(reference)
   ) {
     return res.status(400).send(page(
@@ -133,6 +133,41 @@ export default async function handler(req, res) {
     const booking = result.rows[0];
     const status = String(booking.status || '').toLowerCase();
     const payment = String(booking.payment_status || '').toLowerCase();
+
+    if (action === 'cancel_booking') {
+      if (
+        !['pending', 'approved', 'confirmed'].includes(status)
+      ) {
+        await client.query('ROLLBACK');
+        return res.status(409).send(page(
+          'Booking cannot be cancelled',
+          'This booking is already cancelled or inactive.'
+        ));
+      }
+
+      if (payment === 'paid') {
+        await client.query('ROLLBACK');
+        return res.status(409).send(page(
+          'Paid booking requires review',
+          'Paid bookings must be reviewed for refunds before cancellation.'
+        ));
+      }
+
+      await client.query(
+        `UPDATE public.bookings
+         SET status = 'cancelled'
+         WHERE id = $1`,
+        [booking.id]
+      );
+
+      await client.query('COMMIT');
+
+      return res.status(200).send(page(
+        'Booking cancelled',
+        'Booking ' + reference +
+        ' has been cancelled and its dates released.'
+      ));
+    }
 
     if (action === 'mark_paid') {
       if (status !== 'approved' || payment === 'paid') {
