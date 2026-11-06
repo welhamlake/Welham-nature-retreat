@@ -24,7 +24,15 @@ nav{display:flex;gap:20px;flex-wrap:wrap}
 nav a{text-decoration:none;font-size:13px}
 nav a:hover{text-decoration:underline}
 .hero{min-height:620px;background:linear-gradient(90deg,rgba(9,26,20,.82),rgba(9,26,20,.18)),url('images/1000035298.webp') center 52%/cover;display:flex;align-items:center;color:white}
-.hero>div{max-width:1180px;width:100%;margin:auto;padding:70px 24px}
+
+.hero{position:relative;overflow:hidden}
+.hero video{z-index:0}
+.hero>div{position:relative;z-index:1}
+@media(max-width:480px){
+.hero h1{font-size:clamp(2.2rem,9vw,3rem);overflow-wrap:break-word}
+}
+
+  .hero>div{max-width:1180px;width:100%;margin:auto;padding:70px 24px}
 .eyebrow{text-transform:uppercase;letter-spacing:.24em;font-size:12px;font-weight:700;color:var(--gold)}
 h1{font-size:clamp(3.4rem,7vw,6.5rem);margin:15px 0;max-width:850px}
 .hero p{max-width:570px;font-size:19px;color:#f4eee4}
@@ -105,7 +113,16 @@ h1{font-size:3.1rem}
 <main>
 
 <section id="home" class="hero">
-<div>
+
+<video autoplay muted loop playsinline
+style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0">
+<source src="images/welham-lake-hero-mobile.mp4" media="(max-width:767px)" type="video/mp4">
+<source src="images/welham-lake-hero.mp4" type="video/mp4">
+</video>
+
+  
+<div style="position:relative;z-index:1">
+
 <span class="eyebrow">A private escape in North Yorkshire</span>
 <h1>Stay somewhere extraordinary.</h1>
 <p>Quiet waters. Wild encounters. Unforgettable nights. Discover intimate lakeside stays and exclusive wildlife photography at Welham Nature Retreat.</p>
