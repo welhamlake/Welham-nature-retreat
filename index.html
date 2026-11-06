@@ -7,6 +7,41 @@
 <meta name="description" content="Welham Nature Retreat, North Yorkshire. Luxury lakeside cabin, exclusive wildlife photography hides and island glamping opening March 2027.">
 <title>Welham Nature Retreat | Private Lakeside Escapes in North Yorkshire</title>
 <style>
+  .cabin-slideshow {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+}
+
+.cabin-slideshow img {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cabin-slideshow img:first-of-type {
+  display: block;
+}
+
+.cabin-slideshow button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  background: rgba(0,0,0,.55);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.slide-prev { left: 10px; }
+.slide-next { right: 10px; }
 :root{--forest:#172c24;--forest2:#284739;--cream:#f7f4ed;--gold:#d9bb82;--ink:#1e3029;--muted:#63736b}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -142,10 +177,14 @@ style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index
 <div class="cards">
 
 <article class="card">
-<img src="images/luxury-cabin-aerial.webp" alt="Welham luxury timber cabin illuminated at dusk">
+<div class="cabin-slideshow">
+  <img src="images/luxury-cabin-aerial.webp" alt="Welham luxury timber cabin illuminated at dusk">
   <img src="images/cabin-bedroom.webp" alt="Luxury cabin bedroom at Welham Lake" loading="lazy">
 <img src="images/cabin-interior.webp" alt="Cosy interior of the Welham Lake cabin" loading="lazy">
-<div class="inside">
+<button type="button" class="slide-prev" onclick="changeCabinSlide(-1)" aria-label="Previous photograph">❮</button>
+<button type="button" class="slide-next" onclick="changeCabinSlide(1)" aria-label="Next photograph">❯</button>
+</div>
+  <div class="inside">
 <span class="tag"Available now</span>
 <h3>Luxury Lakeside Cabin</h3>
 <p>Private wood-fired hot tub, BBQ, firepit, cosy double bedroom and exclusive use of the cabin's wildlife hide.</p>
@@ -945,5 +984,31 @@ $('reserve').addEventListener('click',async () => {
 });
 </script>
 
+<script>
+document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
+  const photos = [...slideshow.querySelectorAll('img')];
+  let current = 0;
+
+  if (!photos.length) return;
+
+  function showPhoto(index) {
+    current = (index + photos.length) % photos.length;
+    photos.forEach((photo, i) => {
+      photo.style.display = i === current ? 'block' : 'none';
+    });
+  }
+
+  slideshow.querySelector('.slide-prev')?.addEventListener('click', () => {
+    showPhoto(current - 1);
+  });
+
+  slideshow.querySelector('.slide-next')?.addEventListener('click', () => {
+    showPhoto(current + 1);
+  });
+
+  showPhoto(0);
+});
+</script>
+  
 </body>
 </html>
