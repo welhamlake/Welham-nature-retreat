@@ -143,6 +143,27 @@ h1{font-size:clamp(3.4rem,7vw,6.5rem);margin:15px 0;max-width:850px}
 nav{justify-content:center;gap:11px}
 h1{font-size:3.1rem}
 }
+
+/* Guest availability calendar */
+#guestCalendar .calendar-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 0}
+#guestCalendar .calendar-toolbar button{background:var(--forest2);color:white;border:0;border-radius:4px;padding:9px 12px}
+#guestCalendar .calendar-toolbar button:disabled{opacity:.4}
+#calendarGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+#calendarGrid .calendar-weekday{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:6px 0}
+#calendarGrid .calendar-day{min-width:0;min-height:43px;padding:5px 0;border:1px solid #d6ddd4;border-radius:5px;background:#f0f1ee;color:#526059;font-weight:600}
+#calendarGrid .calendar-day.available{background:#dceee0;color:#1c5630;border-color:#a9d0b3}
+#calendarGrid .calendar-day.available:hover{background:#bde2c7}
+#calendarGrid .calendar-day.unavailable{background:#e5e6e3;color:#777;cursor:not-allowed}
+#calendarGrid .calendar-day.checking{background:#f5f0e6;color:#776c53;cursor:wait}
+#calendarGrid .calendar-day.unknown{background:#fff0d8;color:#78521c;cursor:not-allowed}
+#calendarGrid .calendar-day.selected{outline:3px solid var(--forest2);outline-offset:1px}
+#calendarGrid .calendar-day:disabled{opacity:1}
+#guestCalendar .calendar-legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;font-size:13px}
+#guestCalendar .calendar-legend span{display:inline-flex;align-items:center;gap:6px}
+#guestCalendar .calendar-swatch{width:13px;height:13px;border:1px solid #bbc6bb;border-radius:2px;display:inline-block}
+#guestCalendar .calendar-swatch.available{background:#dceee0}
+#guestCalendar .calendar-swatch.unavailable{background:#e5e6e3}
+#guestCalendar .calendar-swatch.unknown{background:#fff0d8}
 </style>
 </head>
 <body>
@@ -348,6 +369,35 @@ style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index
 <span class="eyebrow">Plan your visit</span>
 <h2>Explore your booking</h2>
 <p>Choose your experience and dates, check live availability, then send a request for manual approval.</p>
+</div>
+
+<div class="booking" id="guestCalendar" style="margin-bottom:24px">
+<h3>Guest availability calendar</h3>
+<p class="small muted">Choose an experience to check live availability. For accommodation, green dates indicate a possible arrival for a minimum two-night stay, not that every longer stay is available.</p>
+<div class="field">
+<label for="calendarType">Experience</label>
+<select id="calendarType">
+<option value="cabin">Luxury Lakeside Cabin</option>
+<option value="island">Island Bell Tent</option>
+<option value="hide-day">Separate Wildlife Hide — Daytime</option>
+<option value="hide-night">Separate Wildlife Hide — Overnight</option>
+<option value="cabin_hide">Luxury Cabin Wildlife Hide</option>
+<option value="island_hides">Island Wildlife Hides</option>
+</select>
+</div>
+<div class="calendar-toolbar">
+<button type="button" id="calendarPrev" aria-label="Previous month">❮</button>
+<strong id="calendarMonth" aria-live="polite"></strong>
+<button type="button" id="calendarNext" aria-label="Next month">❯</button>
+</div>
+<div id="calendarGrid" aria-label="Availability by date"></div>
+<div class="calendar-legend">
+<span><i class="calendar-swatch available"></i>Available to request</span>
+<span><i class="calendar-swatch unavailable"></i>Unavailable</span>
+<span><i class="calendar-swatch unknown"></i>Unable to check</span>
+</div>
+<p class="small muted" id="calendarStatus" role="status" aria-live="polite">Checking availability…</p>
+<p class="small">Tap a green date to fill in the booking form below. All requests require approval; availability is checked again before submission.</p>
 </div>
 
 <div class="booking">
@@ -1010,6 +1060,129 @@ $('reserve').addEventListener('click',async () => {
     updateButtons();
   }
 });
+</script>
+
+<script>
+/* Read-only guest calendar: uses the same public availability endpoint as the booking form. */
+(() => {
+  const grid = document.getElementById('calendarGrid');
+  const typeSelect = document.getElementById('calendarType');
+  const monthLabel = document.getElementById('calendarMonth');
+  const status = document.getElementById('calendarStatus');
+  const prev = document.getElementById('calendarPrev');
+  const next = document.getElementById('calendarNext');
+  const today = localToday();
+  let month = today.slice(0, 7);
+  let generation = 0;
+  const maxMonth = addDays(today, 365).slice(0, 7);
+
+  function moveMonth(shift) {
+    const [year, m] = month.split('-').map(Number);
+    const d = new Date(Date.UTC(year, m - 1 + shift, 1));
+    month = d.toISOString().slice(0, 7);
+    render();
+  }
+  function dateEligible(date, kind) {
+    if (date < today) return false;
+    if ((kind === 'island' || kind === 'island_hides') && date < '2027-03-01') return false;
+    if (['cabin_hide','island_hides'].includes(kind) && date > addDays(today, 14)) return false;
+    if (kind === 'cabin') {
+      const weekday = new Date(date + 'T12:00:00Z').getUTCDay();
+      if (weekday === 0 || weekday === 6) return false;
+    }
+    return true;
+  }
+  async function checkDate(date, kind) {
+    const hide = kind.startsWith('hide-');
+    const type = hide ? 'hide' : kind;
+    const params = new URLSearchParams({type, start_date: date});
+    if (hide) {
+      params.set('session', kind === 'hide-night' ? 'night' : 'day');
+      params.set('end_date', date);
+    } else if (kind === 'cabin_hide' || kind === 'island_hides') {
+      params.set('session', 'day');
+    } else {
+      // Check a valid minimum two-night stay, not a single occupied night.
+      params.set('end_date', addDays(date, 2));
+    }
+    const response = await fetch('/api/availability?' + params, {cache:'no-store'});
+    if (!response.ok) {
+      // Validation errors can mean unavailable; server/network errors remain unknown.
+      if (response.status >= 500 || response.status === 429) return 'unknown';
+      return 'unavailable';
+    }
+    const result = await response.json();
+    return result.available === true ? 'available' : 'unavailable';
+  }
+  function chooseDate(date, kind) {
+    const hide = kind.startsWith('hide-');
+    const type = hide ? 'hide' : kind;
+    document.getElementById('type').value = type;
+    toggle();
+    document.getElementById('start').value = date;
+    if (hide) document.getElementById('session').value = kind === 'hide-night' ? 'night' : 'day';
+    if (!isHide(type)) document.getElementById('end').value = addDays(date, 2);
+    document.getElementById('start').dispatchEvent(new Event('change'));
+    if (!isHide(type)) document.getElementById('end').dispatchEvent(new Event('change'));
+    document.getElementById('calculate').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  async function render() {
+    const run = ++generation;
+    const kind = typeSelect.value;
+    const [year, m] = month.split('-').map(Number);
+    const firstWeekday = (new Date(Date.UTC(year, m - 1, 1)).getUTCDay() + 6) % 7;
+    const days = new Date(Date.UTC(year, m, 0)).getUTCDate();
+    monthLabel.textContent = new Intl.DateTimeFormat('en-GB', {month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(year,m-1,1)));
+    prev.disabled = month <= today.slice(0, 7);
+    next.disabled = month >= maxMonth;
+    grid.replaceChildren();
+    for (const label of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']) {
+      const el = document.createElement('div');
+      el.className = 'calendar-weekday';
+      el.textContent = label;
+      grid.appendChild(el);
+    }
+    for (let i = 0; i < firstWeekday; i++) grid.appendChild(document.createElement('div'));
+    const tasks = [];
+    for (let day = 1; day <= days; day++) {
+      const date = month + '-' + String(day).padStart(2,'0');
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.textContent = String(day);
+      el.className = 'calendar-day unavailable';
+      el.disabled = true;
+      el.setAttribute('aria-label', date + ': unavailable');
+      grid.appendChild(el);
+      if (!dateEligible(date, kind)) continue;
+      el.className = 'calendar-day checking';
+      el.setAttribute('aria-label', date + ': checking');
+      tasks.push(async () => {
+        let state;
+        try { state = await checkDate(date, kind); }
+        catch { state = 'unknown'; }
+        if (generation !== run) return;
+        el.className = 'calendar-day ' + state;
+        el.disabled = state !== 'available';
+        el.setAttribute('aria-label', date + ': ' + (state === 'available' ? 'available to request' : state === 'unknown' ? 'could not check' : 'unavailable'));
+        if (state === 'available') el.addEventListener('click', () => chooseDate(date,kind));
+      });
+    }
+    status.textContent = tasks.length ? 'Checking live dates…' : 'No bookable dates in this month for this experience.';
+    // Limit concurrent checks so mobile connections and the booking API are not overloaded.
+    let cursor = 0;
+    await Promise.all(Array.from({length: Math.min(4,tasks.length)}, async () => {
+      while (cursor < tasks.length && generation === run) {
+        const task = tasks[cursor++];
+        await task();
+      }
+    }));
+    if (generation === run && tasks.length) status.textContent = 'Dates checked. Availability may change until your request is accepted.';
+  }
+  prev.addEventListener('click', () => moveMonth(-1));
+  next.addEventListener('click', () => moveMonth(1));
+  typeSelect.addEventListener('change', render);
+  render();
+})();
 </script>
 
 <script>
