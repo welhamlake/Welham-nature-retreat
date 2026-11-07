@@ -1,0 +1,9 @@
+
+{
+  "crons": [
+    {
+      "path": "/api/expire-bookings",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
