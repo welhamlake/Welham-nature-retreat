@@ -1108,63 +1108,6 @@ document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
       String(month + 1).padStart(2, '0'),
       String(day).padStart(2, '0')
     ].join('-');
-  }
-
-  async function render() {
-    const currentVersion = ++version;
-    const type = bookingType.value;
-    const hide = ['hide', 'cabin_hide', 'island_hides'].includes(type);
-
-    sessionRow.style.display = type === 'hide' ? 'block' : 'none';
-
-    const session = hide
-      ? (type === 'hide' ? calSession.value : 'day')
-      : '';
-
-    monthLabel.textContent = new Date(year, month, 1)
-      .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-
-    grid.replaceChildren();
-    weekdays.forEach(day => {
-      const cell = makeCell(day, 'transparent', false);
-      cell.style.fontWeight = 'bold';
-      grid.appendChild(cell);
-    });
-
-    status.textContent = 'Checking live availability…';
-
-    if (!['cabin', 'cabin_hide', 'hide', 'island', 'island_hides'].includes(type)) {
-      status.textContent = 'Choose an experience to view availability.';
-      return;
-    }
-
-    const params = new URLSearchParams({
-      type,
-      month: `${year}-${String(month + 1).padStart(2, '0')}`
-    });
-    if (hide) params.set('session', session);
-
-    try {
-      const response = await fetch('/api/customer-calendar?' + params.toString(), {
-        cache: 'no-store'
-      });
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.error || 'Calendar unavailable');
-      if (currentVersion !== version) return;
-
-      const offset = (new Date(year, month, 1).getDay() + 6) % 7;
-      for (let i = 0; i < offset; i++) {
-        grid.appendChild(makeCell('', 'transparent', false));
-      }
-
-      const count = new Date(year, month + 1, 0).getDate();
-
-      for (let day = 1; day <= count; day++) {
-        const date = dateString(day);
-        const available = data.days[date] === true;
-        const cell = makeCell(
-          String(day),
 
 <script>
 (() => {
