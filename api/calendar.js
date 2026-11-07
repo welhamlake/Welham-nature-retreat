@@ -8,7 +8,7 @@ const experiences = [
   'Luxury Cabin',
   'Luxury Cabin Wildlife Hide',
   'Island Glamping',
-  'Separate Wildlife Hide',
+  'Woodland Wildlife Pond Hide',
   'Island Wildlife Hides'
 ];
 
@@ -16,7 +16,7 @@ const names = {
   cabin: 'Luxury Cabin',
   cabin_hide: 'Luxury Cabin Wildlife Hide',
   island: 'Island Glamping',
-  hide: 'Separate Wildlife Hide',
+  hide: 'Woodland Wildlife Pond Hide',
   island_hides: 'Island Wildlife Hides'
 };
 
@@ -330,7 +330,7 @@ function category(type) {
     return 'Island Glamping';
   }
   if (t.includes('hide') || t.includes('wildlife')) {
-    return 'Separate Wildlife Hide';
+    return 'Woodland Wildlife Pond Hide';
   }
 
   return value;
