@@ -1065,10 +1065,9 @@ document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
     <p id="calMessage" style="font-size:13px"></p>
   `;
 
-  typeInput.closest('form')?.parentNode.insertBefore(
-    calendar,
-    typeInput.closest('form')
-  );
+  
+typeInput.parentNode.insertBefore(calendar, typeInput);
+
 
   let displayed = new Date();
   displayed.setDate(1);
