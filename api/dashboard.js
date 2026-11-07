@@ -69,7 +69,7 @@ small{color:#66736a}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:14px}
 .calendar-grid .weekday{text-align:center;font-size:12px;font-weight:bold;color:#52645a;padding:8px 0}
 .calendar-day{min-height:63px;border:1px solid #d9dfd9;border-radius:7px;background:#fafbf9;padding:5px 3px;overflow:hidden;text-align:left}
-.calendar-day .day-number{font-size:13px;font-weight:bold}
+.calendar-day .day-number{font-size:13px;font-weight:bold;color:#243328}
 .calendar-day .dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:7px}
 .calendar-day .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
 .calendar-day.has-items{border-color:#648975;cursor:pointer}
