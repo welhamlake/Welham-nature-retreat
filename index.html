@@ -143,27 +143,6 @@ h1{font-size:clamp(3.4rem,7vw,6.5rem);margin:15px 0;max-width:850px}
 nav{justify-content:center;gap:11px}
 h1{font-size:3.1rem}
 }
-
-/* Guest availability calendar */
-#guestCalendar .calendar-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 0}
-#guestCalendar .calendar-toolbar button{background:var(--forest2);color:white;border:0;border-radius:4px;padding:9px 12px}
-#guestCalendar .calendar-toolbar button:disabled{opacity:.4}
-#calendarGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-#calendarGrid .calendar-weekday{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:6px 0}
-#calendarGrid .calendar-day{min-width:0;min-height:43px;padding:5px 0;border:1px solid #d6ddd4;border-radius:5px;background:#f0f1ee;color:#526059;font-weight:600}
-#calendarGrid .calendar-day.available{background:#dceee0;color:#1c5630;border-color:#a9d0b3}
-#calendarGrid .calendar-day.available:hover{background:#bde2c7}
-#calendarGrid .calendar-day.unavailable{background:#e5e6e3;color:#777;cursor:not-allowed}
-#calendarGrid .calendar-day.checking{background:#f5f0e6;color:#776c53;cursor:wait}
-#calendarGrid .calendar-day.unknown{background:#fff0d8;color:#78521c;cursor:not-allowed}
-#calendarGrid .calendar-day.selected{outline:3px solid var(--forest2);outline-offset:1px}
-#calendarGrid .calendar-day:disabled{opacity:1}
-#guestCalendar .calendar-legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;font-size:13px}
-#guestCalendar .calendar-legend span{display:inline-flex;align-items:center;gap:6px}
-#guestCalendar .calendar-swatch{width:13px;height:13px;border:1px solid #bbc6bb;border-radius:2px;display:inline-block}
-#guestCalendar .calendar-swatch.available{background:#dceee0}
-#guestCalendar .calendar-swatch.unavailable{background:#e5e6e3}
-#guestCalendar .calendar-swatch.unknown{background:#fff0d8}
 </style>
 </head>
 <body>
@@ -215,11 +194,11 @@ style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index
   <img src="images/luxury-cabin-aerial.webp" alt="Welham luxury timber cabin illuminated at dusk">
   <img src="images/cabin-bedroom.webp" alt="Luxury cabin bedroom at Welham Lake" loading="lazy">
 <img src="images/cabin-interior.webp" alt="Cosy interior of the Welham Lake cabin" loading="lazy">
-<button type="button" class="slide-prev" onclick="changeCabinSlide(-1)" aria-label="Previous photograph">❮</button>
-<button type="button" class="slide-next" onclick="changeCabinSlide(1)" aria-label="Next photograph">❯</button>
+<button type="button" class="slide-prev" aria-label="Previous photograph">❮</button>
+<button type="button" class="slide-next" aria-label="Next photograph">❯</button>
 </div>
   <div class="inside">
-<span class="tag"Available now</span>
+<span class="tag">Available now</span>
 <h3>Luxury Lakeside Cabin</h3>
 <p>Private wood-fired hot tub, BBQ, firepit, cosy double bedroom and exclusive use of the cabin's wildlife hide.</p>
 <p class="price">£300 per night · Sleeps 2</p>
@@ -242,7 +221,7 @@ style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index
 <img src="images/1000065352.webp" alt="Wildlife photographed at Welham Lake">
 <div class="inside">
 <span class="tag">Day and overnight sessions</span>
-<h3>Separate Wildlife Hide</h3>
+<h3>Woodland Wildlife Pool Hide</h3>
 <p>Exclusive photography sessions for one or two guests, independently of the accommodation. Book 1–7 consecutive daytime or overnight sessions.</p>
 <p class="price">£75 for one · £100 for two, per session</p>
 <a class="btn" href="#book" data-book-type="hide">Explore sessions</a>
@@ -330,11 +309,11 @@ style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index
 <span class="eyebrow">A front-row seat to the wild</span>
 <h2>Wildlife worth waiting for.</h2>
 <p class="muted">From kingfishers to badgers and owls, Welham Lake offers memorable wildlife photography opportunities. Sightings vary naturally and cannot be guaranteed.</p>
-<p class="muted">Choose the separate wildlife hide for 1–7 consecutive daytime or overnight sessions. The Luxury Cabin Wildlife Hide offers daytime-only sessions when the cabin is unoccupied. The three island wildlife hides are available together for exclusive daytime sessions from March 2027, when not reserved for glamping guests.</p>
+<p class="muted">Choose the Woodland Wildlife Pool Hide for 1–7 consecutive daytime or overnight sessions. The Luxury Cabin Wildlife Hide offers daytime-only sessions when the cabin is unoccupied. The three island wildlife hides are available together for exclusive daytime sessions from March 2027, when not reserved for glamping guests.</p>
 <div class="facts">
 <span>Day: 7am–5pm</span>
-<span>Separate hide night: 6pm–6am</span>
-<span>Separate hide: 1–7 sessions</span>
+<span>Woodland Pool Hide night: 6pm–6am</span>
+<span>Woodland Pool Hide: 1–7 sessions</span>
 <span>Exclusive use</span>
 <span>Up to 2 guests</span>
 <span>Cabin hide: book 14 days ahead</span>
@@ -371,35 +350,6 @@ style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index
 <p>Choose your experience and dates, check live availability, then send a request for manual approval.</p>
 </div>
 
-<div class="booking" id="guestCalendar" style="margin-bottom:24px">
-<h3>Guest availability calendar</h3>
-<p class="small muted">Choose an experience to check live availability. For accommodation, green dates indicate a possible arrival for a minimum two-night stay, not that every longer stay is available.</p>
-<div class="field">
-<label for="calendarType">Experience</label>
-<select id="calendarType">
-<option value="cabin">Luxury Lakeside Cabin</option>
-<option value="island">Island Bell Tent</option>
-<option value="hide-day">Separate Wildlife Hide — Daytime</option>
-<option value="hide-night">Separate Wildlife Hide — Overnight</option>
-<option value="cabin_hide">Luxury Cabin Wildlife Hide</option>
-<option value="island_hides">Island Wildlife Hides</option>
-</select>
-</div>
-<div class="calendar-toolbar">
-<button type="button" id="calendarPrev" aria-label="Previous month">❮</button>
-<strong id="calendarMonth" aria-live="polite"></strong>
-<button type="button" id="calendarNext" aria-label="Next month">❯</button>
-</div>
-<div id="calendarGrid" aria-label="Availability by date"></div>
-<div class="calendar-legend">
-<span><i class="calendar-swatch available"></i>Available to request</span>
-<span><i class="calendar-swatch unavailable"></i>Unavailable</span>
-<span><i class="calendar-swatch unknown"></i>Unable to check</span>
-</div>
-<p class="small muted" id="calendarStatus" role="status" aria-live="polite">Checking availability…</p>
-<p class="small">Tap a green date to fill in the booking form below. All requests require approval; availability is checked again before submission.</p>
-</div>
-
 <div class="booking">
 <h3>Request your stay or wildlife session</h3>
 <div class="notice">
@@ -412,7 +362,7 @@ This is a booking request, not a confirmed reservation. Requests are held provis
 <select id="type">
 <option value="cabin">Luxury Lakeside Cabin</option>
 <option value="island">Island Bell Tent — March 2027</option>
-<option value="hide">Separate Wildlife Hide</option>
+<option value="hide">Woodland Wildlife Pool Hide</option>
 <option value="island_hides">Island Wildlife Hides — March 2027</option>
 <option value="cabin_hide">Luxury Cabin Wildlife Hide</option>
 </select>
@@ -498,7 +448,7 @@ Send booking request
 <p id="reserveStatus" role="status" aria-live="polite" class="small"></p>
 </div>
 
-<p class="small muted">Accommodation requires a minimum two-night stay. Cabin arrivals are Monday–Friday. Check-in is 3pm and check-out is 10:30am. The Separate Wildlife Hide can be booked for 1–7 consecutive daytime or overnight sessions, with each session charged at the standard rate. Island and cabin wildlife hide-only sessions are daytime only and can be requested up to 14 days ahead. Island hide sessions begin from March 2027.</p>
+<p class="small muted">Accommodation requires a minimum two-night stay. Cabin arrivals are Monday–Friday. Check-in is 3pm and check-out is 10:30am. The Woodland Wildlife Pool Hide can be booked for 1–7 consecutive daytime or overnight sessions, with each session charged at the standard rate. Island and cabin wildlife hide-only sessions are daytime only and can be requested up to 14 days ahead. Island hide sessions begin from March 2027.</p>
 <p class="small"><strong>Payment terms:</strong> Full payment is requested by bank transfer after manual approval and is due within 24 hours. Bookings are confirmed only after payment verification. Cancellation terms will be provided for review before payment.</p>
 </div>
 </div>
@@ -517,11 +467,11 @@ Send booking request
 
 <details>
 <summary>Does accommodation include wildlife hides?</summary>
-<p>Yes. The luxury cabin includes its dedicated wildlife hide throughout the stay, including checkout day. Island Glamping includes exclusive use of all three island wildlife hides throughout the stay, including checkout day. The separate wildlife hide can be booked independently.</p>
+<p>Yes. The luxury cabin includes its dedicated wildlife hide throughout the stay, including checkout day. Island Glamping includes exclusive use of all three island wildlife hides throughout the stay, including checkout day. The Woodland Wildlife Pool Hide can be booked independently.</p>
 </details>
 
 <details>
-<summary>Can I book several days in the Separate Wildlife Hide?</summary>
+<summary>Can I book several days in the Woodland Wildlife Pool Hide?</summary>
 <p>Yes. You can request 1–7 consecutive daytime sessions (7am–5pm) or overnight sessions (6pm–6am the following morning). Each session costs £75 for one person or £100 for two people. All selected sessions must be available.</p>
 </details>
 
@@ -556,7 +506,7 @@ Send booking request
 <span class="eyebrow">Discover a quieter world</span>
 <h2>Find your escape at Welham</h2>
 <p class="muted">North Yorkshire · Private lakeside stays · Wildlife encounters</p>
-<p>Website: <strong>www.welhamnatureretreat.co.uk</strong></p>
+<p>Website: <strong>www.welhamlakenature.co.uk</strong></p>
 <p class="small muted">For enquiries, email welhamlake@live.co.uk. Booking requests are reviewed manually.</p>
 </div>
 </section>
@@ -767,8 +717,8 @@ function calculate() {
         'Luxury Cabin Wildlife Hide · Daytime 7am–5pm';
     } else {
       description = session === 'day'
-        ? 'Separate Wildlife Hide · Daytime 7am–5pm'
-        : 'Separate Wildlife Hide · Overnight 6pm–6am next day';
+        ? 'Woodland Wildlife Pool Hide · Daytime 7am–5pm'
+        : 'Woodland Wildlife Pool Hide · Overnight 6pm–6am next day';
 
       description +=
         ' · ' + count +
@@ -1060,129 +1010,6 @@ $('reserve').addEventListener('click',async () => {
     updateButtons();
   }
 });
-</script>
-
-<script>
-/* Read-only guest calendar: uses the same public availability endpoint as the booking form. */
-(() => {
-  const grid = document.getElementById('calendarGrid');
-  const typeSelect = document.getElementById('calendarType');
-  const monthLabel = document.getElementById('calendarMonth');
-  const status = document.getElementById('calendarStatus');
-  const prev = document.getElementById('calendarPrev');
-  const next = document.getElementById('calendarNext');
-  const today = localToday();
-  let month = today.slice(0, 7);
-  let generation = 0;
-  const maxMonth = addDays(today, 365).slice(0, 7);
-
-  function moveMonth(shift) {
-    const [year, m] = month.split('-').map(Number);
-    const d = new Date(Date.UTC(year, m - 1 + shift, 1));
-    month = d.toISOString().slice(0, 7);
-    render();
-  }
-  function dateEligible(date, kind) {
-    if (date < today) return false;
-    if ((kind === 'island' || kind === 'island_hides') && date < '2027-03-01') return false;
-    if (['cabin_hide','island_hides'].includes(kind) && date > addDays(today, 14)) return false;
-    if (kind === 'cabin') {
-      const weekday = new Date(date + 'T12:00:00Z').getUTCDay();
-      if (weekday === 0 || weekday === 6) return false;
-    }
-    return true;
-  }
-  async function checkDate(date, kind) {
-    const hide = kind.startsWith('hide-');
-    const type = hide ? 'hide' : kind;
-    const params = new URLSearchParams({type, start_date: date});
-    if (hide) {
-      params.set('session', kind === 'hide-night' ? 'night' : 'day');
-      params.set('end_date', date);
-    } else if (kind === 'cabin_hide' || kind === 'island_hides') {
-      params.set('session', 'day');
-    } else {
-      // Check a valid minimum two-night stay, not a single occupied night.
-      params.set('end_date', addDays(date, 2));
-    }
-    const response = await fetch('/api/availability?' + params, {cache:'no-store'});
-    if (!response.ok) {
-      // Validation errors can mean unavailable; server/network errors remain unknown.
-      if (response.status >= 500 || response.status === 429) return 'unknown';
-      return 'unavailable';
-    }
-    const result = await response.json();
-    return result.available === true ? 'available' : 'unavailable';
-  }
-  function chooseDate(date, kind) {
-    const hide = kind.startsWith('hide-');
-    const type = hide ? 'hide' : kind;
-    document.getElementById('type').value = type;
-    toggle();
-    document.getElementById('start').value = date;
-    if (hide) document.getElementById('session').value = kind === 'hide-night' ? 'night' : 'day';
-    if (!isHide(type)) document.getElementById('end').value = addDays(date, 2);
-    document.getElementById('start').dispatchEvent(new Event('change'));
-    if (!isHide(type)) document.getElementById('end').dispatchEvent(new Event('change'));
-    document.getElementById('calculate').scrollIntoView({behavior:'smooth',block:'center'});
-  }
-  async function render() {
-    const run = ++generation;
-    const kind = typeSelect.value;
-    const [year, m] = month.split('-').map(Number);
-    const firstWeekday = (new Date(Date.UTC(year, m - 1, 1)).getUTCDay() + 6) % 7;
-    const days = new Date(Date.UTC(year, m, 0)).getUTCDate();
-    monthLabel.textContent = new Intl.DateTimeFormat('en-GB', {month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(year,m-1,1)));
-    prev.disabled = month <= today.slice(0, 7);
-    next.disabled = month >= maxMonth;
-    grid.replaceChildren();
-    for (const label of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']) {
-      const el = document.createElement('div');
-      el.className = 'calendar-weekday';
-      el.textContent = label;
-      grid.appendChild(el);
-    }
-    for (let i = 0; i < firstWeekday; i++) grid.appendChild(document.createElement('div'));
-    const tasks = [];
-    for (let day = 1; day <= days; day++) {
-      const date = month + '-' + String(day).padStart(2,'0');
-      const el = document.createElement('button');
-      el.type = 'button';
-      el.textContent = String(day);
-      el.className = 'calendar-day unavailable';
-      el.disabled = true;
-      el.setAttribute('aria-label', date + ': unavailable');
-      grid.appendChild(el);
-      if (!dateEligible(date, kind)) continue;
-      el.className = 'calendar-day checking';
-      el.setAttribute('aria-label', date + ': checking');
-      tasks.push(async () => {
-        let state;
-        try { state = await checkDate(date, kind); }
-        catch { state = 'unknown'; }
-        if (generation !== run) return;
-        el.className = 'calendar-day ' + state;
-        el.disabled = state !== 'available';
-        el.setAttribute('aria-label', date + ': ' + (state === 'available' ? 'available to request' : state === 'unknown' ? 'could not check' : 'unavailable'));
-        if (state === 'available') el.addEventListener('click', () => chooseDate(date,kind));
-      });
-    }
-    status.textContent = tasks.length ? 'Checking live dates…' : 'No bookable dates in this month for this experience.';
-    // Limit concurrent checks so mobile connections and the booking API are not overloaded.
-    let cursor = 0;
-    await Promise.all(Array.from({length: Math.min(4,tasks.length)}, async () => {
-      while (cursor < tasks.length && generation === run) {
-        const task = tasks[cursor++];
-        await task();
-      }
-    }));
-    if (generation === run && tasks.length) status.textContent = 'Dates checked. Availability may change until your request is accepted.';
-  }
-  prev.addEventListener('click', () => moveMonth(-1));
-  next.addEventListener('click', () => moveMonth(1));
-  typeSelect.addEventListener('change', render);
-  render();
-})();
 </script>
 
 <script>
