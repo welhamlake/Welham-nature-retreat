@@ -1165,25 +1165,214 @@ document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
         const available = data.days[date] === true;
         const cell = makeCell(
           String(day),
-          available ? '#bde7c7' : '#f1c4c4',
-          available
-        );
 
-        cell.setAttribute('aria-label',
-          `${date}: ${available ? 'Available' : 'Unavailable'}`);
+<script>
+(() => {
+  const bookingType = document.getElementById('type');
+  const bookingStart = document.getElementById('start');
+  const bookingSession = document.getElementById('session');
+
+  if (!bookingType || !bookingStart) return;
+
+  const section = document.createElement('section');
+  section.id = 'customerAvailabilityCalendar';
+  section.style.cssText =
+    'margin:22px 0;padding:18px;background:#f5f7f2;color:#243328;border-radius:14px;max-width:650px';
+
+  section.innerHTML = `
+    <h3 style="margin:0 0 8px">Live Availability Calendar</h3>
+    <p style="font-size:14px">Choose an experience below to view its availability.</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:15px 0">
+      <button type="button" id="calPrev">‹</button>
+      <strong id="calMonth"></strong>
+      <button type="button" id="calNext">›</button>
+    </div>
+    <div id="calSessionRow" style="margin-bottom:12px">
+      <label for="calSession">Session: </label>
+      <select id="calSession">
+        <option value="day">Daytime</option>
+        <option value="night">Overnight</option>
+      </select>
+    </div>
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px"></div>
+    <p id="calStatus" style="font-size:13px" aria-live="polite"></p>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;margin-top:15px">
+      <span>🟢 Available</span>
+      <span>🔴 Booked / unavailable</span>
+      <span>⚪ Booking restriction</span>
+    </div>
+    <p id="calExplanation" style="font-size:13px;line-height:1.6;margin-top:14px"></p>
+    <p style="font-size:12px">All booking requests are subject to confirmation.</p>
+  `;
+
+  const bookingForm = bookingType.closest('form');
+  if (bookingForm) {
+    bookingForm.parentNode.insertBefore(section, bookingForm);
+  } else {
+    bookingType.parentNode.insertBefore(section, bookingType);
+  }
+
+  const grid = section.querySelector('#calGrid');
+  const monthLabel = section.querySelector('#calMonth');
+  const status = section.querySelector('#calStatus');
+  const explanation = section.querySelector('#calExplanation');
+  const calSession = section.querySelector('#calSession');
+  const sessionRow = section.querySelector('#calSessionRow');
+
+  const today = new Date();
+  let year = today.getFullYear();
+  let month = today.getMonth();
+  let version = 0;
+
+  const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  function makeCell(text, background, clickable) {
+    const el = document.createElement(clickable ? 'button' : 'div');
+    el.textContent = text;
+    el.style.cssText =
+      'min-width:0;min-height:39px;border-radius:6px;border:0;display:flex;align-items:center;justify-content:center;font-size:13px;';
+    el.style.background = background;
+
+    if (clickable) {
+      el.type = 'button';
+      el.style.cursor = 'pointer';
+    }
+
+    return el;
+  }
+
+  function dateString(day) {
+    return [
+      year,
+      String(month + 1).padStart(2, '0'),
+      String(day).padStart(2, '0')
+    ].join('-');
+  }
+
+  function setExplanation(type) {
+    if (type === 'cabin') {
+      explanation.textContent =
+        'Luxury Cabin: Minimum two-night stay. Check-in is Monday to Friday only. Weekend stays are welcome when included in a longer booking. Grey weekend dates mean arrivals are not permitted, not that the cabin is necessarily booked.';
+    } else if (type === 'cabin_hide' || type === 'island_hides') {
+      explanation.textContent =
+        'Wildlife hide bookings open 14 days in advance. Grey dates beyond this period are not necessarily booked — booking has simply not opened yet. Daytime sessions only.';
+    } else if (type === 'hide') {
+      explanation.textContent =
+        'Woodland Wildlife Pool Hide: Daytime and overnight sessions are available. Select your preferred session above. Grey dates are outside the permitted booking period.';
+    } else if (type === 'island') {
+      explanation.textContent =
+        'Island Glamping: Minimum two-night stay. Opens March 2027. Grey dates before opening are not booked — the experience has not opened yet.';
+    } else {
+      explanation.textContent = '';
+    }
+  }
+
+  async function render() {
+    const currentVersion = ++version;
+    const type = bookingType.value;
+    const hide = ['hide', 'cabin_hide', 'island_hides'].includes(type);
+
+    sessionRow.style.display = type === 'hide' ? 'block' : 'none';
+    setExplanation(type);
+
+    const session = hide
+      ? (type === 'hide' ? calSession.value : 'day')
+      : '';
+
+    monthLabel.textContent = new Date(year, month, 1)
+      .toLocaleDateString('en-GB', {
+        month: 'long',
+        year: 'numeric'
+      });
+
+    grid.replaceChildren();
+
+    weekdays.forEach(day => {
+      const cell = makeCell(day, 'transparent', false);
+      cell.style.fontWeight = 'bold';
+      grid.appendChild(cell);
+    });
+
+    status.textContent = 'Checking live availability…';
+
+    if (!['cabin', 'cabin_hide', 'hide', 'island', 'island_hides'].includes(type)) {
+      status.textContent = 'Choose an experience to view availability.';
+      return;
+    }
+
+    const params = new URLSearchParams({
+      type,
+      month: `${year}-${String(month + 1).padStart(2, '0')}`
+    });
+
+    if (hide) params.set('session', session);
+
+    try {
+      const response = await fetch(
+        '/api/customer-calendar?' + params.toString(),
+        { cache: 'no-store' }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Calendar unavailable');
+      }
+
+      if (currentVersion !== version) return;
+
+      const offset = (new Date(year, month, 1).getDay() + 6) % 7;
+
+      for (let i = 0; i < offset; i++) {
+        grid.appendChild(makeCell('', 'transparent', false));
+      }
+
+      const count = new Date(year, month + 1, 0).getDate();
+
+      for (let day = 1; day <= count; day++) {
+        const date = dateString(day);
+        const detail = data.reasons?.[date];
+        const dayStatus = detail?.status ||
+          (data.days?.[date] ? 'available' : 'unavailable');
+
+        const available = dayStatus === 'available';
+
+        const colour = available
+          ? '#bde7c7'
+          : dayStatus === 'restricted'
+            ? '#e5e7eb'
+            : '#f1c4c4';
+
+        const cell = makeCell(String(day), colour, available);
+
+        const label = dayStatus === 'restricted'
+          ? (detail?.reason || 'Booking restriction')
+          : available ? 'Available' : 'Booked or unavailable';
+
+        cell.setAttribute('aria-label', `${date}: ${label}`);
+        cell.title = label;
 
         if (available) {
           cell.addEventListener('click', () => {
             bookingStart.value = date;
-            bookingStart.dispatchEvent(new Event('change', { bubbles: true }));
+            bookingStart.dispatchEvent(
+              new Event('change', { bubbles: true })
+            );
 
             if (hide && bookingSession) {
               bookingSession.value = session;
-              bookingSession.dispatchEvent(new Event('change', { bubbles: true }));
+              bookingSession.dispatchEvent(
+                new Event('change', { bubbles: true })
+              );
             }
 
-            status.textContent = `Selected ${date}. Complete the booking details below.`;
-            bookingStart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            status.textContent =
+              `Selected ${date}. Complete the booking details below.`;
+
+            bookingStart.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
           });
         }
 
@@ -1191,29 +1380,39 @@ document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
       }
 
       status.textContent = 'Tap a green date to select it.';
+
     } catch (error) {
       if (currentVersion !== version) return;
-      status.textContent = 'Unable to load availability. Please try again.';
+      status.textContent =
+        'Unable to load availability. Please try again.';
     }
   }
 
   section.querySelector('#calPrev').addEventListener('click', () => {
     month--;
-    if (month < 0) { month = 11; year--; }
+    if (month < 0) {
+      month = 11;
+      year--;
+    }
     render();
   });
 
   section.querySelector('#calNext').addEventListener('click', () => {
     month++;
-    if (month > 11) { month = 0; year++; }
+    if (month > 11) {
+      month = 0;
+      year++;
+    }
     render();
   });
 
   calSession.addEventListener('change', render);
   bookingType.addEventListener('change', render);
+
   render();
 })();
 </script>
+
 
 </body>
 </html>
