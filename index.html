@@ -1037,6 +1037,145 @@ document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
   showPhoto(0);
 });
 </script>
-  
+ 
+<script>
+(() => {
+  const typeInput = document.getElementById('type');
+  const dateInput = document.getElementById('start');
+  const sessionInput = document.getElementById('session');
+
+  if (!typeInput || !dateInput) return;
+
+  const calendar = document.createElement('section');
+  calendar.id = 'customerAvailabilityCalendar';
+  calendar.style.cssText =
+    'margin:22px 0;padding:18px;background:#f5f7f2;color:#243328;border-radius:14px';
+
+  calendar.innerHTML = `
+    <h3 style="margin:0 0 10px">Live Availability Calendar</h3>
+    <p style="font-size:14px">
+      🟢 Available &nbsp; 🔴 Unavailable &nbsp; ⚪ Restricted
+    </p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
+      <button type="button" id="calPrev" style="padding:8px 14px">❮</button>
+      <strong id="calMonth"></strong>
+      <button type="button" id="calNext" style="padding:8px 14px">❯</button>
+    </div>
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px"></div>
+    <p id="calMessage" style="font-size:13px"></p>
+  `;
+
+  typeInput.closest('form')?.parentNode.insertBefore(
+    calendar,
+    typeInput.closest('form')
+  );
+
+  let displayed = new Date();
+  displayed.setDate(1);
+
+  const grid = calendar.querySelector('#calGrid');
+  const message = calendar.querySelector('#calMessage');
+
+  function localDate(y, m, d) {
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  async function render() {
+    const year = displayed.getFullYear();
+    const month = displayed.getMonth();
+    const monthValue = localDate(year, month, 1).slice(0, 7);
+    const type = typeInput.value;
+    const session = sessionInput?.value || 'day';
+
+    calendar.querySelector('#calMonth').textContent =
+      displayed.toLocaleDateString('en-GB', {
+        month: 'long',
+        year: 'numeric'
+      });
+
+    grid.innerHTML = '';
+    message.textContent = 'Loading availability...';
+
+    const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    weekdays.forEach(day => {
+      const cell = document.createElement('div');
+      cell.textContent = day;
+      cell.style.cssText = 'text-align:center;font-weight:bold;font-size:12px';
+      grid.appendChild(cell);
+    });
+
+    try {
+      const url = '/api/customer-calendar?type=' +
+        encodeURIComponent(type) +
+        '&month=' + monthValue +
+        '&session=' + encodeURIComponent(session);
+
+      const response = await fetch(url, { cache: 'no-store' });
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Calendar unavailable');
+
+      const offset = (new Date(year, month, 1).getDay() + 6) % 7;
+      for (let i = 0; i < offset; i++) {
+        grid.appendChild(document.createElement('div'));
+      }
+
+      const count = new Date(year, month + 1, 0).getDate();
+
+      for (let day = 1; day <= count; day++) {
+        const date = localDate(year, month, day);
+        const info = data.reasons?.[date];
+        const status = info?.status ||
+          (data.days?.[date] ? 'available' : 'unavailable');
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = day;
+        button.title = info?.reason || status;
+        button.style.cssText =
+          'padding:9px 0;border:0;border-radius:6px;font-size:13px;' +
+          'background:' +
+          (status === 'available' ? '#b8e4b5' :
+            status === 'restricted' ? '#dedede' : '#f3aaaa') +
+          ';color:#182b20;';
+
+        if (status === 'available') {
+          button.addEventListener('click', () => {
+            dateInput.value = date;
+            dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+            dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            message.textContent = 'Selected ' + date;
+          });
+        } else {
+          button.disabled = true;
+        }
+
+        grid.appendChild(button);
+      }
+
+      message.textContent = 'Tap a green date to select it.';
+    } catch (error) {
+      message.textContent = 'Unable to load availability: ' + error.message;
+    }
+  }
+
+  calendar.querySelector('#calPrev').addEventListener('click', () => {
+    displayed.setMonth(displayed.getMonth() - 1);
+    render();
+  });
+
+  calendar.querySelector('#calNext').addEventListener('click', () => {
+    displayed.setMonth(displayed.getMonth() + 1);
+    render();
+  });
+
+  typeInput.addEventListener('change', render);
+  sessionInput?.addEventListener('change', render);
+
+  render();
+})();
+</script>
+ 
+
 </body>
 </html>
