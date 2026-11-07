@@ -235,6 +235,11 @@ export default async function handler(req, res) {
     return res.status(200).send(layout(`
       <section class="card">
         <h2>Private Booking Calendar</h2>
+        
+<a class="action" href="/api/calendar">
+  Manage Dates — Block / Unblock
+</a>
+
         <p class="calendar-note">Tap a date to see bookings, their status and manually blocked dates. Accommodation checkout days are included. Only you can see guest details after logging in.</p>
         <div class="calendar-controls">
           <button type="button" id="calPrev" aria-label="Previous month">❮</button>
