@@ -178,7 +178,7 @@ export default async function handler(req, res) {
 
       if (
         !/^[1-9]\d*$/.test(id) ||
-        !experiences.includes(experience) ||
+        !(Object.keys(names).includes(experience) || experiences.includes(experience)) ||
         !/^\d{4}-\d{2}-\d{2}$/.test(start) ||
         !/^\d{4}-\d{2}-\d{2}$/.test(end)
       ) {
