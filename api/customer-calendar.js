@@ -28,13 +28,6 @@ function addDays(value, days) {
   return date.toISOString().slice(0, 10);
 }
 
-function validDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(value + 'T12:00:00Z');
-  return !Number.isNaN(date.getTime()) &&
-    date.toISOString().slice(0, 10) === value;
-}
-
 function ukToday() {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
@@ -52,10 +45,14 @@ function overlaps(a, b, c, d) {
 }
 
 function bookingRange(type, start, end) {
-  if (type === 'hide') return [start, addDays(end || start, 1)];
+  if (type === 'hide') {
+    return [start, addDays(end || start, 1)];
+  }
+
   if (type === 'cabin_hide' || type === 'island_hides') {
     return [start, addDays(start, 1)];
   }
+
   if (!end) return null;
   return [start, addDays(end, 1)];
 }
@@ -65,11 +62,16 @@ function conflicts(request, booking) {
 
   const a = bookingRange(request.type, request.start, request.end);
   const b = bookingRange(booking.type, booking.start, booking.end);
-  if (!a || !b || !overlaps(a[0], a[1], b[0], b[1])) return false;
+
+  if (!a || !b || !overlaps(a[0], a[1], b[0], b[1])) {
+    return false;
+  }
 
   if (request.type === 'hide' && booking.type === 'hide') {
-    return !booking.session || booking.session === 'all' ||
-      !request.session || request.session === 'all' ||
+    return !booking.session ||
+      booking.session === 'all' ||
+      !request.session ||
+      request.session === 'all' ||
       booking.session === request.session;
   }
 
@@ -85,25 +87,37 @@ export default async function handler(req, res) {
 
   const { type, month, session } = req.query || {};
 
-  if (!TYPES.includes(type) ||
-      typeof month !== 'string' ||
-      !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    return res.status(400).json({ error: 'Invalid experience or month' });
+  if (
+    !TYPES.includes(type) ||
+    typeof month !== 'string' ||
+    !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+  ) {
+    return res.status(400).json({
+      error: 'Invalid experience or month'
+    });
   }
 
   const isHide = ['hide', 'cabin_hide', 'island_hides'].includes(type);
-  if (isHide &&
-      (type === 'hide' ? !['day', 'night'].includes(session) : session !== 'day')) {
+
+  if (
+    isHide &&
+    (type === 'hide'
+      ? !['day', 'night'].includes(session)
+      : session !== 'day')
+  ) {
     return res.status(400).json({ error: 'Invalid session' });
   }
 
   if (!process.env.DATABASE_URL) {
-    return res.status(503).json({ error: 'Availability unavailable' });
+    return res.status(503).json({
+      error: 'Availability unavailable'
+    });
   }
 
   const today = ukToday();
   const first = month + '-01';
-  const last = addDays(addDays(first, 32).slice(0, 7) + '-01', -1);
+  const nextMonth = addDays(first, 32).slice(0, 7) + '-01';
+  const last = addDays(nextMonth, -1);
   const next = addDays(last, 1);
 
   const pool = new Pool({
@@ -121,8 +135,10 @@ export default async function handler(req, res) {
   try {
     const [blockResult, bookingResult] = await Promise.all([
       pool.query(
-        `SELECT experience, start_date::text AS start_date,
-                end_date::text AS end_date, session
+        `SELECT experience,
+                start_date::text AS start_date,
+                end_date::text AS end_date,
+                session
          FROM public.blocked_dates
          WHERE experience = ANY($1::text[])
            AND start_date < $2::date
@@ -130,9 +146,12 @@ export default async function handler(req, res) {
         [BLOCKS[type], next, first]
       ),
       pool.query(
-        `SELECT type, start_date::text AS start_date,
-                end_date::text AS end_date, session,
-                status, expires_at
+        `SELECT type,
+                start_date::text AS start_date,
+                end_date::text AS end_date,
+                session,
+                status,
+                expires_at
          FROM public.bookings
          WHERE type = ANY($1::text[])
            AND status = ANY($2::text[])
@@ -143,20 +162,44 @@ export default async function handler(req, res) {
     ]);
 
     const days = {};
+    const reasons = {};
     const now = Date.now();
 
     for (let date = first; date < next; date = addDays(date, 1)) {
-      let available = date >= today;
+      let status = 'available';
+      let reason = '';
 
-      if (['island', 'island_hides'].includes(type) &&
-          date < '2027-03-01') available = false;
+      // Booking restrictions are GREY, not RED.
+      if (date < today) {
+        status = 'restricted';
+        reason = 'Past date';
+      }
 
-      if (['cabin_hide', 'island_hides'].includes(type) &&
-          date > addDays(today, 14)) available = false;
+      if (
+        ['island', 'island_hides'].includes(type) &&
+        date < '2027-03-01'
+      ) {
+        status = 'restricted';
+        reason = 'Island experiences open March 2027';
+      }
+
+      if (
+        ['cabin_hide', 'island_hides'].includes(type) &&
+        date > addDays(today, 14)
+      ) {
+        status = 'restricted';
+        reason = 'Bookings open 14 days in advance';
+      }
 
       if (type === 'cabin') {
-        const weekday = new Date(date + 'T12:00:00Z').getUTCDay();
-        if (weekday === 0 || weekday === 6) available = false;
+        const weekday = new Date(
+          date + 'T12:00:00Z'
+        ).getUTCDay();
+
+        if (weekday === 0 || weekday === 6) {
+          status = 'restricted';
+          reason = 'Cabin arrivals Monday to Friday only';
+        }
       }
 
       const request = {
@@ -166,27 +209,46 @@ export default async function handler(req, res) {
         session: isHide ? session : null
       };
 
-      const range = bookingRange(request.type, request.start, request.end);
+      const range = bookingRange(
+        request.type,
+        request.start,
+        request.end
+      );
 
-      if (available) {
-        available = !blockResult.rows.some(block => {
+      // Only check bookings when the date is otherwise eligible.
+      if (status === 'available') {
+        const blocked = blockResult.rows.some(block => {
           if (!overlaps(
-            range[0], range[1],
-            block.start_date, addDays(block.end_date, 1)
-          )) return false;
+            range[0],
+            range[1],
+            block.start_date,
+            addDays(block.end_date, 1)
+          )) {
+            return false;
+          }
 
           if (type !== 'hide') return true;
 
-          return !block.session || block.session === 'all' ||
+          return !block.session ||
+            block.session === 'all' ||
             block.session === session;
         });
+
+        if (blocked) {
+          status = 'unavailable';
+          reason = 'Unavailable';
+        }
       }
 
-      if (available) {
-        available = !bookingResult.rows.some(booking => {
-          if (booking.status === 'pending' &&
-              booking.expires_at &&
-              new Date(booking.expires_at).getTime() <= now) return false;
+      if (status === 'available') {
+        const booked = bookingResult.rows.some(booking => {
+          if (
+            booking.status === 'pending' &&
+            booking.expires_at &&
+            new Date(booking.expires_at).getTime() <= now
+          ) {
+            return false;
+          }
 
           return conflicts(request, {
             type: booking.type,
@@ -195,20 +257,37 @@ export default async function handler(req, res) {
             session: booking.session
           });
         });
+
+        if (booked) {
+          status = 'unavailable';
+          reason = 'Unavailable';
+        }
       }
 
-      days[date] = available;
+      days[date] = status === 'available';
+      reasons[date] = {
+        status,
+        reason
+      };
     }
 
     return res.status(200).json({
       type,
       month,
       session: isHide ? session : null,
-      days
+      days,
+      reasons
     });
+
   } catch (error) {
-    console.error('Public calendar failed:', error.code || error.message);
-    return res.status(500).json({ error: 'Unable to load availability' });
+    console.error(
+      'Public calendar failed:',
+      error.code || error.message
+    );
+
+    return res.status(500).json({
+      error: 'Unable to load availability'
+    });
   } finally {
     await pool.end();
   }
