@@ -1169,7 +1169,8 @@ if (requestNumber !== calendarRequest) return;
     render();
   });
 
-  typeInput.addEventListener('change', render);
+  typeInput.addEventListener('input', render);
+typeInput.addEventListener('change', render);
   sessionInput?.addEventListener('change', render);
 window.addEventListener('pageshow', () => {
   render();
