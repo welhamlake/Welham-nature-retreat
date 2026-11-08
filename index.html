@@ -1066,7 +1066,10 @@ document.querySelectorAll('.cabin-slideshow').forEach(slideshow => {
   `;
 
   
-typeInput.parentNode.insertBefore(calendar, typeInput);
+document.querySelector('#book .booking').insertBefore(
+  calendar,
+  document.querySelector('#book .booking .formgrid')
+);
 
 
   let displayed = new Date();
