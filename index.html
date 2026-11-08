@@ -1078,8 +1078,9 @@ typeInput.parentNode.insertBefore(calendar, typeInput);
   function localDate(y, m, d) {
     return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
-
+let calendarRequest = 0;
   async function render() {
+    const requestNumber = ++calendarRequest;
     const year = displayed.getFullYear();
     const month = displayed.getMonth();
     const monthValue = localDate(year, month, 1).slice(0, 7);
@@ -1111,7 +1112,7 @@ typeInput.parentNode.insertBefore(calendar, typeInput);
 
       const response = await fetch(url, { cache: 'no-store' });
       const data = await response.json();
-
+if (requestNumber !== calendarRequest) return;
       if (!response.ok) throw new Error(data.error || 'Calendar unavailable');
 
       const offset = (new Date(year, month, 1).getDay() + 6) % 7;
