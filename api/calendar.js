@@ -530,6 +530,22 @@ function showDetails(date) {
       );
     }
 
+    if (['pending', 'approved', 'confirmed', 'paid'].includes(b.status)) {
+      const editLink = document.createElement('a');
+      editLink.href = '/api/booking-edit?reference=' +
+        encodeURIComponent(b.reference);
+      editLink.textContent = '✏️ Edit Booking';
+      editLink.style.display = 'inline-block';
+      editLink.style.background = '#234735';
+      editLink.style.color = '#ffffff';
+      editLink.style.padding = '12px 18px';
+      editLink.style.borderRadius = '8px';
+      editLink.style.margin = '12px 0';
+      editLink.style.textDecoration = 'none';
+      editLink.style.fontWeight = 'bold';
+      div.appendChild(editLink);
+    }
+
     if (
       String(b.status).toLowerCase() === 'approved' &&
       String(b.payment).toLowerCase() !== 'paid'
