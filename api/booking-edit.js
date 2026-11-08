@@ -138,6 +138,10 @@ ${message}
 <p><strong>Payment:</strong> ${esc(b.payment_status)}</p>
 <p><strong>Current total:</strong> ${money(b.total_pence)}</p>
 
+<div id="price-preview" class="message">
+  Updated price will appear here.
+</div>
+
 <form method="POST" action="/api/booking-edit">
 <input type="hidden" name="action" value="save">
 <input type="hidden" name="reference" value="${esc(b.request_reference)}">
@@ -172,6 +176,64 @@ ${sessionOptions.map(s => `<option value="${s}" ${session === s ? 'selected' : '
 
 <button type="submit">Save Changes &amp; Email Customer</button>
 </form>
+
+<script>
+(() => {
+  const form = document.querySelector('form[action="/api/booking-edit"]');
+  const preview = document.getElementById('price-preview');
+  const original = ${Number(b.total_pence)};
+  const type = '${type}';
+
+  const pounds = pence =>
+    '£' + (pence / 100).toFixed(2);
+
+  function updatePrice() {
+    const start = form.elements.start_date.value;
+    const end = form.elements.end_date.value;
+    const guests = Number(form.elements.guests.value);
+
+    const startDate = new Date(start + 'T12:00:00Z');
+    const endDate = new Date(end + 'T12:00:00Z');
+    const days = Math.round((endDate - startDate) / 86400000);
+
+    if (!start || !end || !Number.isFinite(days) ||
+        days < 0 || guests < 1 || guests > 2) {
+      preview.textContent = 'Please enter valid dates and guest numbers.';
+      return;
+    }
+
+    let total;
+
+    if (type === 'cabin') {
+      total = days * 30000;
+    } else if (type === 'island') {
+      total = days * 25000;
+    } else if (type === 'island_hides') {
+      total = (days + 1) * 10000;
+    } else {
+      total = (days + 1) * (guests === 1 ? 7500 : 10000);
+    }
+
+    const difference = total - original;
+
+    preview.textContent =
+      'Original price: ' + pounds(original) +
+      ' | Updated price: ' + pounds(total) +
+      ' | ' + (
+        difference > 0
+          ? 'Extra to collect: ' + pounds(difference)
+          : difference < 0
+            ? 'Refund/credit to arrange: ' + pounds(-difference)
+            : 'No price difference'
+      );
+  }
+
+  form.addEventListener('input', updatePrice);
+  form.addEventListener('change', updatePrice);
+  updatePrice();
+})();
+</script>
+
 </div>`);
 }
 
