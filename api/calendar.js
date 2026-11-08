@@ -556,8 +556,8 @@ function showDetails(date) {
     if (
       ['pending', 'approved', 'confirmed'].includes(
         String(b.status).toLowerCase()
-      ) &&
-      String(b.payment).toLowerCase() !== 'paid'
+      ) 
+      
     ) {
       addOwnerForm(
         div, b, 'cancel_booking', 'Cancel Booking',
