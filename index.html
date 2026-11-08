@@ -1172,7 +1172,6 @@ if (requestNumber !== calendarRequest) return;
   typeInput.addEventListener('change', render);
   sessionInput?.addEventListener('change', render);
 window.addEventListener('pageshow', () => {
-  typeInput.dispatchEvent(new Event('change'));
   render();
 });
   render();
