@@ -145,13 +145,6 @@ export default async function handler(req, res) {
         ));
       }
 
-      if (payment === 'paid') {
-        await client.query('ROLLBACK');
-        return res.status(409).send(page(
-          'Paid booking requires review',
-          'Paid bookings must be reviewed for refunds before cancellation.'
-        ));
-      }
 
       await client.query(
         `UPDATE public.bookings
