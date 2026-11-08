@@ -1153,7 +1153,7 @@ if (requestNumber !== calendarRequest) return;
         grid.appendChild(button);
       }
 
-      message.textContent = 'Tap a green date to select it.';
+      message.textContent = 'Showing: ' + data.type + ' / ' + (data.session || 'none') + '. Tap a green date.';
     } catch (error) {
       message.textContent = 'Unable to load availability: ' + error.message;
     }
