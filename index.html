@@ -1174,9 +1174,13 @@ if (requestNumber !== calendarRequest) return;
 window.addEventListener('pageshow', () => {
   render();
 });
-    setTimeout(() => {
+function refreshCalendar() {
   render();
-}, 500);
+}
+
+setTimeout(refreshCalendar, 500);
+setTimeout(refreshCalendar, 1500);
+setTimeout(refreshCalendar, 3000);
 })();
 </script>
  
