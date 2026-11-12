@@ -293,10 +293,15 @@ export default async function handler(req, res) {
 
     const v = result.rows[0];
 
-    if (
-      v.status !== 'issued' ||
-      v.payment_status !== 'paid'
-    ) {
+    
+if (
+  (v.status !== 'issued' ||
+   v.payment_status !== 'paid') &&
+  !(body.preview === 'yes' &&
+    v.status === 'pending' &&
+    v.payment_status === 'awaiting')
+) {
+
       return res.status(403).send(page(`
         <div class="login">
         <h2>Voucher not yet issued</h2>
