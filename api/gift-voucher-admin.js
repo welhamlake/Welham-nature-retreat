@@ -126,6 +126,21 @@ function voucherCard(v) {
 
   let actions = '';
 
+if (status === 'pending' && payment === 'awaiting') {
+  actions += `
+    <form class="actionForm"
+          method="POST"
+          action="/api/gift-voucher-print">
+      <input type="hidden" name="reference"
+             value="${escapeHtml(v.reference)}">
+      <input type="hidden" name="preview" value="yes">
+      <label>Owner password to preview voucher</label>
+      <input type="password" name="password"
+             autocomplete="current-password" required>
+      <button type="submit">Preview Voucher</button>
+    </form>`;
+}
+
   if (payment !== 'paid' && status === 'pending') {
     actions += actionForm(
       v,
