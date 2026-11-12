@@ -1,10 +1,10 @@
 
 import { Resend } from 'resend';
 import { randomUUID } from 'node:crypto';
-
 import pg from 'pg';
-const DATABASE_URL = process.env.DATABASE_URL;
+
 const { Pool } = pg;
+
 const vouchers = {
   'Wildlife Hide - One Person - £75': 75,
   'Wildlife Hide - Two People - £100': 100,
@@ -32,6 +32,12 @@ export default async function handler(req, res) {
   if (!process.env.RESEND_API_KEY) {
     return res.status(503).json({
       error: 'Email service unavailable'
+    });
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return res.status(503).json({
+      error: 'Voucher database unavailable'
     });
   }
 
@@ -74,6 +80,20 @@ export default async function handler(req, res) {
     'Check payment before issuing a voucher.'
   ].join('\n');
 
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: true,
+      ...(process.env.SUPABASE_CA_CERT
+        ? { ca: process.env.SUPABASE_CA_CERT }
+        : {})
+    },
+    connectionTimeoutMillis: 5000,
+    max: 1
+  });
+
+  let emailSent = false;
+
   try {
     const resend = new Resend(
       process.env.RESEND_API_KEY
@@ -91,6 +111,35 @@ export default async function handler(req, res) {
       throw new Error('Email delivery failed');
     }
 
+    emailSent = true;
+
+    await pool.query(
+      `INSERT INTO public.gift_vouchers (
+        reference,
+        voucher_type,
+        amount,
+        buyer_name,
+        buyer_email,
+        recipient_name,
+        personal_message,
+        status,
+        payment_status
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9
+      )`,
+      [
+        reference,
+        voucher,
+        vouchers[voucher],
+        buyer,
+        email,
+        recipient,
+        message,
+        'pending',
+        'awaiting'
+      ]
+    );
+
     return res.status(200).json({
       success: true,
       reference,
@@ -98,10 +147,23 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Voucher email failed', error);
+    console.error(
+      'Voucher request failed:',
+      error.code || error.message
+    );
+
+    if (emailSent) {
+      return res.status(500).json({
+        error: 'Your request was emailed, but could not be recorded. Please contact us before submitting again.',
+        reference
+      });
+    }
 
     return res.status(500).json({
       error: 'Unable to send request. Please try again.'
     });
+
+  } finally {
+    await pool.end();
   }
 }
