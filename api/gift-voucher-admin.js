@@ -168,6 +168,21 @@ if (status === 'pending' && payment === 'awaiting') {
     );
   }
 
+if (status === 'issued' && payment === 'paid') {
+  actions += `
+    <form class="actionForm"
+          method="POST"
+          action="/api/gift-voucher-email"
+          onsubmit="return confirm('Send this voucher email to the purchaser?')">
+      <input type="hidden" name="reference"
+             value="${escapeHtml(v.reference)}">
+      <label>Owner password to email voucher</label>
+      <input type="password" name="password"
+             autocomplete="current-password" required>
+      <button type="submit">Email Voucher</button>
+    </form>`;
+}
+
   return `
 <div class="voucher">
 <h3>${escapeHtml(v.reference)}</h3>
