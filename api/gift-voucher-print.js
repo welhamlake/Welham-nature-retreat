@@ -325,6 +325,24 @@ if (status === 'issued') {
 <button onclick="window.print()">Print / Save as PDF</button>
 </div>
 <div class="sheet">
+
+${body.preview === 'yes' ? `
+<div style="
+  position:absolute;
+  z-index:10;
+  top:42%;
+  left:8%;
+  width:84%;
+  text-align:center;
+  transform:rotate(-20deg);
+  font:bold 54pt Arial,sans-serif;
+  color:rgba(255,255,255,.7);
+  text-shadow:2px 2px 8px #000;
+  pointer-events:none;
+">
+SAMPLE - NOT VALID
+</div>` : ''}
+
 <img class="photo"
 src="/images/welham-gift-voucher.jpg"
 alt="Welham Lake">
