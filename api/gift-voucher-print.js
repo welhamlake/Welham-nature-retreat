@@ -305,6 +305,16 @@ export default async function handler(req, res) {
         </div>`));
     }
 
+if (status === 'issued') {
+  actions += `
+    <p>
+      <a class="action"
+         href="/api/gift-voucher-print?reference=${encodeURIComponent(v.reference)}">
+        🖨️ Print Voucher
+      </a>
+    </p>`;
+}
+
     const voucherHtml = `
 <div class="controls">
 <button onclick="window.print()">Print / Save as PDF</button>
