@@ -1249,7 +1249,7 @@ setTimeout(refreshCalendar, 3000);
   <div style="background:#f4f5ef;color:#253c30;padding:25px;border-radius:14px;text-align:left">
     <h3>Choose Your Gift Voucher</h3>
 
-    <form action="mailto:welhamlake@live.co.uk" method="post" enctype="text/plain">
+    <form id="gift-voucher-form">
       <label for="voucher-type">Gift voucher</label>
       <select id="voucher-type" name="Voucher" required style="display:block;width:100%;padding:12px;margin:8px 0 18px">
         <option value="">Select a voucher</option>
@@ -1291,6 +1291,60 @@ setTimeout(refreshCalendar, 3000);
     Facebook
   </a>
 </div>
+
+<script>
+document.getElementById('gift-voucher-form')
+  .addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+
+    const data = {
+      voucher: document.getElementById('voucher-type').value,
+      buyer: document.getElementById('voucher-buyer').value,
+      email: document.getElementById('voucher-email').value,
+      recipient: document.getElementById('voucher-recipient').value,
+      message: document.getElementById('voucher-message').value
+    };
+
+    button.disabled = true;
+    button.textContent = 'Sending request...';
+
+    try {
+      const response = await fetch('/api/gift-voucher', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Request failed');
+      }
+
+      alert(
+        'Thank you! Your gift voucher request has been received.\n\n' +
+        'Reference: ' + result.reference +
+        '\n\nWe will contact you with payment instructions.'
+      );
+
+      form.reset();
+
+    } catch (error) {
+      alert(
+        'Sorry, your request could not be sent.\n' +
+        'Please try again or contact Welham Lake.'
+      );
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Request Gift Voucher';
+    }
+  });
+</script>
 
 </body>
 </html>
