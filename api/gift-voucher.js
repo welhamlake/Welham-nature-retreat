@@ -1,7 +1,7 @@
 
 import { Resend } from 'resend';
 import { randomUUID } from 'node:crypto';
-
+const DATABASE_URL = process.env.DATABASE_URL;
 const vouchers = {
   'Wildlife Hide - One Person - £75': 75,
   'Wildlife Hide - Two People - £100': 100,
