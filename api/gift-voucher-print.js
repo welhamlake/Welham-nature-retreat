@@ -293,6 +293,9 @@ export default async function handler(req, res) {
 
     const v = result.rows[0];
 
+const status = String(v.status || '').toLowerCase();
+const payment = String(v.payment_status || '').toLowerCase();
+
     
 if (
   (v.status !== 'issued' ||
