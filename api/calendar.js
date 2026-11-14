@@ -273,7 +273,10 @@ export default async function handler(req, res) {
     <span><i class="dot red"></i>Blocked</span>
     <span><i class="dot grey"></i>Other</span>
   </div>
-  <p><a class="action" href="/api/calendar-block">+ Block Dates</a></p>
+  <p>
+  <a class="action" href="/api/manual-booking">+ Add Booking</a>
+  <a class="action" href="/api/calendar-block">+ Block Dates</a>
+</p>
 </div>
 <div class="panel"><div class="filters" id="filters"></div></div>
 <div class="panel">
