@@ -168,8 +168,8 @@ ${message}
 <label>Guest Name</label>
 <input name="guest_name" maxlength="120" required>
 
-<label>Email (optional)</label>
-<input type="email" name="email" maxlength="254">
+<label>Guest Email (required)</label>
+<input type="email" name="email" maxlength="254" required>
 
 <label>Phone (optional)</label>
 <input name="phone" maxlength="60">
@@ -276,7 +276,7 @@ export default async function handler(req, res) {
   if (
     !Object.hasOwn(TYPES, type) ||
     !name || name.length > 120 ||
-    (email && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)) ||
+    (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) ||
     phone.length > 60 ||
     ![1, 2].includes(guests) ||
     !validDate(start) ||
@@ -404,18 +404,21 @@ export default async function handler(req, res) {
         type, start_date, end_date, session, guests,
         guest_name, email, phone, total_pence,
         deposit_pence, status, payment_status,
-        approval_token_hash, request_reference, expires_at
+approval_token_hash, request_reference, expires_at,
+booking_source
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,
-        0,'confirmed',$10,$11,$12,NULL
+      0,'confirmed',$10,$11,$12,$13,$14
       )
     `, [
       type, start, end || null, session, guests,
       name, email || null, phone || null, totalPence,
       payment === 'paid' ? 'paid' : 'awaiting',
-      createHash('sha256').update(randomBytes(32)).digest('hex'),
-      reference
+createHash('sha256').update(randomBytes(32)).digest('hex'),
+reference,
+'2036-12-31T00:00:00Z',
+source
     ]);
 
     await client.query('COMMIT');
